@@ -40,6 +40,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square'
     $squareMessageType = 'ok';
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_webhook') {
+    requireCsrfToken();
+    $whUrl = trim((string) ($_POST['square_webhook_notification_url'] ?? ''));
+    $whKey = trim((string) ($_POST['square_webhook_signature_key'] ?? ''));
+    set_config('square_webhook_notification_url', $whUrl);
+    if ($whKey !== '') {
+        set_config('square_webhook_signature_key', $whKey);
+    }
+    $squareMessage = 'Webhook settings saved. Notification URL must match the subscription byte-for-byte (HMAC includes this exact string).';
+    $squareMessageType = 'ok';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_test') {
     requireCsrfToken();
     square_config_reset();
@@ -65,6 +77,8 @@ if (is_string($t) && strlen($t) > 12) {
 } elseif (is_string($t) && $t !== '') {
     $masked = '(stored)';
 }
+
+$whSigStored = trim((string) (get_config('square_webhook_signature_key') ?? '')) !== '';
 
 $adminPageTitle = 'Square configuration';
 require_once __DIR__ . '/includes/header.php';
@@ -110,6 +124,20 @@ require_once __DIR__ . '/includes/nav.php';
         <?= csrfField() ?>
         <input type="hidden" name="form" value="square_test">
         <button type="submit" class="btn btn-outline">Test connection (GET /locations)</button>
+    </form>
+</div>
+
+<div class="info-box" style="margin-top:1.5rem;">
+    <h2 style="margin-top:0;">Webhook (invoice.payment_made)</h2>
+    <p style="color:#8b949e;font-size:.875rem;">Used by <code>public/api/square-webhook.php</code>. The notification URL Square stores must match <strong>exactly</strong> what you enter here so HMAC verification succeeds.</p>
+    <form method="POST">
+        <?= csrfField() ?>
+        <input type="hidden" name="form" value="square_webhook">
+        <label for="square_webhook_notification_url">Notification URL</label>
+        <input type="url" id="square_webhook_notification_url" name="square_webhook_notification_url" spellcheck="false" style="max-width:100%;width:100%;box-sizing:border-box;" value="<?= htmlspecialchars((string) (get_config('square_webhook_notification_url') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="https://your-host/.../api/square-webhook.php">
+        <label for="square_webhook_signature_key">Signature key (starts with typically whsec_…)</label>
+        <textarea id="square_webhook_signature_key" name="square_webhook_signature_key" rows="2" autocomplete="off" placeholder="<?= $whSigStored ? 'Stored — paste a new key to replace' : 'Signature key (whsec…)' ?>"></textarea>
+        <button type="submit" class="btn" style="margin-top:1rem;">Save webhook settings</button>
     </form>
 </div>
 

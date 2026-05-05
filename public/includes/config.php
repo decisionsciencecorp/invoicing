@@ -23,7 +23,7 @@ if (!defined('SITE_URL')) {
     define('SITE_URL', (is_string($envSite) && $envSite !== '') ? $envSite : 'http://localhost');
 }
 
-if (session_status() === PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE && !(defined('DSC_INVOICING_SKIP_SESSION') && DSC_INVOICING_SKIP_SESSION)) {
     $secure = defined('SITE_URL') && strpos(SITE_URL, 'https://') === 0;
     $sessionTtl = (int) ADMIN_SESSION_LIFETIME_SECONDS;
     if ($sessionTtl < 4 * 3600) {

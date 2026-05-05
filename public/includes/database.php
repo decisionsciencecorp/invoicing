@@ -132,6 +132,53 @@ function initializeDatabase(): void {
         )
     ");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_time_entries_engagement_period ON time_entries(engagement_id, billing_period_month)');
+
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS outbound_invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            engagement_id INTEGER NOT NULL REFERENCES engagements(id) ON DELETE CASCADE,
+            anchor_month TEXT NOT NULL,
+            overage_month TEXT NOT NULL,
+            retainer_amount_cents INTEGER NOT NULL DEFAULT 0,
+            overage_amount_cents INTEGER NOT NULL DEFAULT 0,
+            total_amount_cents INTEGER NOT NULL DEFAULT 0,
+            square_order_id TEXT,
+            square_invoice_id TEXT,
+            square_invoice_version INTEGER NOT NULL DEFAULT 0,
+            public_url TEXT,
+            delivery_method TEXT,
+            payment_status TEXT NOT NULL DEFAULT 'published',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $db->exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbound_inv_eng_anchor ON outbound_invoices(engagement_id, anchor_month)'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_outbound_square_invoice ON outbound_invoices(square_invoice_id)');
+    dsc_invoicing_ensure_engagement_work_stoppage_column($db);
+}
+
+/**
+ * Migrate older DB files that predate engagements.work_stoppage.
+ */
+function dsc_invoicing_ensure_engagement_work_stoppage_column(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $has = false;
+    $r = $db->query('PRAGMA table_info(engagements)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        if (($row['name'] ?? '') === 'work_stoppage') {
+            $has = true;
+            break;
+        }
+    }
+    if (!$has) {
+        $db->exec('ALTER TABLE engagements ADD COLUMN work_stoppage INTEGER NOT NULL DEFAULT 0');
+    }
 }
 
 function get_config(string $key): ?string {

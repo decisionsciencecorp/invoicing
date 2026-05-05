@@ -1,0 +1,169 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+require_once __DIR__ . '/../includes/billing.php';
+requireAuth();
+
+$db = getDbConnection();
+
+$flash = '';
+$flashType = 'ok';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish_invoice') {
+    requireCsrfToken();
+    $eid = (int) ($_POST['engagement_id'] ?? 0);
+    $anchor = trim((string) ($_POST['anchor_month'] ?? ''));
+    $res = dsc_billing_publish_combined_invoice($db, $eid, $anchor);
+    if (!empty($res['ok'])) {
+        $flash = $res['message'] ?? 'Published.';
+        if (!empty($res['public_url'])) {
+            $flash .= ' Payment link: ' . $res['public_url'];
+        }
+        $flashType = 'ok';
+    } else {
+        $flash = $res['error'] ?? 'Publish failed.';
+        $flashType = 'err';
+    }
+}
+
+$selE = (int) ($_GET['engagement_id'] ?? ($_POST['engagement_id'] ?? 0));
+$selM = trim((string) ($_GET['anchor_month'] ?? ($_POST['anchor_month'] ?? gmdate('Y-m'))));
+if (!dsc_billing_valid_month($selM)) {
+    $selM = gmdate('Y-m');
+}
+
+$preview = null;
+if ($selE > 0 && dsc_billing_valid_month($selM)) {
+    $preview = dsc_billing_combined_totals($db, $selE, $selM);
+}
+
+$engList = [];
+$er = $db->query(
+    'SELECT e.id, e.name AS en, c.name AS cn FROM engagements e '
+    . 'JOIN companies c ON c.id = e.company_id WHERE e.status = \'active\' '
+    . 'ORDER BY c.name COLLATE NOCASE, e.name COLLATE NOCASE'
+);
+while ($row = $er->fetchArray(SQLITE3_ASSOC)) {
+    $engList[] = $row;
+}
+
+$rows = [];
+$ir = $db->query(
+    'SELECT o.*, e.name AS engagement_name, c.name AS company_name '
+    . 'FROM outbound_invoices o '
+    . 'JOIN engagements e ON e.id = o.engagement_id '
+    . 'JOIN companies c ON c.id = e.company_id '
+    . 'ORDER BY o.anchor_month DESC, c.name COLLATE NOCASE LIMIT 100'
+);
+while ($row = $ir->fetchArray(SQLITE3_ASSOC)) {
+    $rows[] = $row;
+}
+
+$adminPageTitle = 'Invoices';
+require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/nav.php';
+?>
+
+<div class="nav-row">
+    <h1>Combined monthly invoices</h1>
+    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
+        <?= csrfField() ?>
+        <button type="submit" class="btn">Logout</button>
+    </form>
+</div>
+
+<p style="color:#8b949e;margin-top:0;">Retainer for <strong>anchor month</strong> M plus overage billed from prior month <strong>M−1</strong> (per PRD). Uses Square Orders → Invoice → Publish (EMAIL).</p>
+
+<?php if ($flash !== ''): ?>
+    <div class="message <?= $flashType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?></div>
+<?php endif; ?>
+
+<div class="info-box">
+    <h2 style="margin-top:0;">Publish invoice</h2>
+    <form method="GET" style="margin-bottom:1rem;">
+        <label for="engagement_id">Engagement</label>
+        <select id="engagement_id" name="engagement_id" required style="display:block;margin-bottom:.75rem;max-width:40rem;width:100%;">
+            <option value="">Select…</option>
+            <?php foreach ($engList as $eg): ?>
+                <option value="<?= (int) $eg['id'] ?>" <?= $selE === (int) $eg['id'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars((string) $eg['cn'], ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars((string) $eg['en'], ENT_QUOTES, 'UTF-8') ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <label for="anchor_month">Anchor month</label>
+        <input id="anchor_month" name="anchor_month" type="month" required value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>" style="display:block;margin-bottom:.75rem;">
+        <button type="submit" class="btn btn-outline">Preview totals</button>
+    </form>
+
+    <?php if ($preview !== null): ?>
+        <?php if (isset($preview['error'])): ?>
+            <div class="message err"><?= htmlspecialchars($preview['error'], ENT_QUOTES, 'UTF-8') ?></div>
+        <?php else: ?>
+            <table style="width:100%;max-width:36rem;font-size:.875rem;border-collapse:collapse;">
+                <tbody>
+                    <tr><td style="padding:.25rem 0;">Anchor (retainer) month</td><td style="text-align:right;"><code><?= htmlspecialchars($preview['retainer_month'], ENT_QUOTES, 'UTF-8') ?></code></td></tr>
+                    <tr><td style="padding:.25rem 0;">Prior month (overage basis)</td><td style="text-align:right;"><code><?= htmlspecialchars((string) ($preview['overage_month'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td></tr>
+                    <tr><td style="padding:.25rem 0;">Retainer</td><td style="text-align:right;">$<?= number_format($preview['retainer_amount_cents'] / 100, 2) ?></td></tr>
+                    <tr><td style="padding:.25rem 0;">Overage</td><td style="text-align:right;">$<?= number_format($preview['overage_amount_cents'] / 100, 2) ?></td></tr>
+                    <tr style="font-weight:600;"><td style="padding:.25rem 0;">Total</td><td style="text-align:right;">$<?= number_format($preview['total_cents'] / 100, 2) ?></td></tr>
+                </tbody>
+            </table>
+            <?php if ($selE > 0 && $preview['total_cents'] > 0): ?>
+                <form method="POST" style="margin-top:1rem;">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="form" value="publish_invoice">
+                    <input type="hidden" name="engagement_id" value="<?= (int) $selE ?>">
+                    <input type="hidden" name="anchor_month" value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>">
+                    <button type="submit" class="btn">Publish to Square</button>
+                </form>
+            <?php elseif ($preview['total_cents'] <= 0): ?>
+                <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Nothing to bill for this pairing.</p>
+            <?php endif; ?>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
+
+<div class="info-box">
+    <h2 style="margin-top:0;">Recent outbound invoices</h2>
+    <?php if ($rows === []): ?>
+        <p style="margin:0;color:#8b949e;">None yet.</p>
+    <?php else: ?>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                <thead>
+                    <tr style="text-align:left;border-bottom:1px solid #30363d;">
+                        <th style="padding:0.4rem;">Anchor</th>
+                        <th style="padding:0.4rem;">Company / engagement</th>
+                        <th style="padding:0.4rem;text-align:right;">Total</th>
+                        <th style="padding:0.4rem;">Paid</th>
+                        <th style="padding:0.4rem;">Link</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($rows as $x): ?>
+                        <tr style="border-bottom:1px solid #21262d;">
+                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['anchor_month'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;">
+                                <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
+                                <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                            </td>
+                            <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
+                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;">
+                                <?php if (!empty(trim((string) ($x['public_url'] ?? '')))): ?>
+                                    <a href="<?= htmlspecialchars((string) $x['public_url'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Pay</a>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+
+<?php require_once __DIR__ . '/includes/footer.php'; ?>

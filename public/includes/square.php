@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/functions.php';
 
 function square_load_env_file(string $path): array {
     if (!file_exists($path)) {
@@ -134,4 +135,125 @@ function dsc_invoicing_square_request(string $method, string $path, ?array $body
         return ['ok' => false, 'status' => $status, 'error' => $msg, 'data' => $data];
     }
     return ['ok' => true, 'status' => $status, 'data' => $data];
+}
+
+// ---------------------------------------------------------------------------
+// Webhooks — HMAC matches Kitchen POS (notification URL + raw body → base64(HMAC)).
+// ---------------------------------------------------------------------------
+
+/**
+ * @return array{url:string, key:string}
+ */
+function dsc_invoicing_square_webhook_notification_config(): array {
+    $url = getenv('SQUARE_WEBHOOK_NOTIFICATION_URL');
+    $url = is_string($url) ? trim($url) : '';
+    $key = getenv('SQUARE_WEBHOOK_SIGNATURE_KEY');
+    $key = is_string($key) ? trim($key) : '';
+    if ($url === '' && function_exists('get_config')) {
+        $u = get_config('square_webhook_notification_url');
+        $url = is_string($u) ? trim($u) : '';
+    }
+    if ($key === '' && function_exists('get_config')) {
+        $k = get_config('square_webhook_signature_key');
+        $key = is_string($k) ? trim($k) : '';
+    }
+    return ['url' => $url, 'key' => $key];
+}
+
+function dsc_invoicing_square_webhook_is_configured(): bool {
+    $c = dsc_invoicing_square_webhook_notification_config();
+    return $c['url'] !== '' && $c['key'] !== '';
+}
+
+function dsc_invoicing_square_webhook_compute_expected_signature(
+    string $notificationUrl,
+    string $rawBody,
+    string $signatureKey,
+): string {
+    return base64_encode(hash_hmac('sha256', $notificationUrl . $rawBody, $signatureKey, true));
+}
+
+function dsc_invoicing_square_webhook_verify_signature(string $rawBody, string $signatureHeader): bool {
+    $c = dsc_invoicing_square_webhook_notification_config();
+    if ($c['key'] === '' || $c['url'] === '') {
+        return false;
+    }
+    $sig = trim($signatureHeader);
+    if ($sig === '') {
+        return false;
+    }
+    $expected = dsc_invoicing_square_webhook_compute_expected_signature($c['url'], $rawBody, $c['key']);
+    return hash_equals($expected, $sig);
+}
+
+/**
+ * Find first Square invoice id (inv:…) inside nested payload.
+ */
+function dsc_invoicing_square_webhook_find_invoice_id(array $payload): ?string {
+    $stack = [$payload];
+    while ($stack !== []) {
+        $cur = array_pop($stack);
+        if (!is_array($cur)) {
+            continue;
+        }
+        foreach ($cur as $k => $v) {
+            if ($k === 'invoice_id' && is_string($v)) {
+                $id = trim($v);
+                if (str_starts_with($id, 'inv:')) {
+                    return $id;
+                }
+            }
+            if ($k === 'id' && is_string($v)) {
+                $id = trim($v);
+                if (str_starts_with($id, 'inv:')) {
+                    return $id;
+                }
+            }
+            if (is_array($v)) {
+                $stack[] = $v;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * @return array{code:int, payload:array<string,mixed>}
+ */
+function dsc_invoicing_square_webhook_run(SQLite3 $db, string $rawBody, string $signatureHeader): array {
+    if (!dsc_invoicing_square_webhook_verify_signature($rawBody, $signatureHeader)) {
+        app_log('warning', 'Square webhook signature verify failed.');
+        return ['code' => 401, 'payload' => ['success' => false, 'error' => 'Invalid signature.']];
+    }
+    $payload = json_decode($rawBody, true);
+    if (!is_array($payload)) {
+        return ['code' => 400, 'payload' => ['success' => false, 'error' => 'Invalid JSON.']];
+    }
+    $type = isset($payload['type']) ? (string) $payload['type'] : '';
+    if ($type === 'invoice.payment_made') {
+        $invId = dsc_invoicing_square_webhook_find_invoice_id($payload);
+        if ($invId === null) {
+            return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'no_invoice_id']];
+        }
+        $st = $db->prepare(
+            'UPDATE outbound_invoices SET payment_status = :ps, updated_at = CURRENT_TIMESTAMP '
+            . 'WHERE square_invoice_id = :i'
+        );
+        $st->bindValue(':ps', 'paid', SQLITE3_TEXT);
+        $st->bindValue(':i', $invId, SQLITE3_TEXT);
+        $st->execute();
+        $sel = $db->prepare('SELECT engagement_id FROM outbound_invoices WHERE square_invoice_id = :i LIMIT 1');
+        $sel->bindValue(':i', $invId, SQLITE3_TEXT);
+        $r = $sel->execute();
+        $row = $r ? $r->fetchArray(SQLITE3_ASSOC) : false;
+        if ($row && !empty($row['engagement_id'])) {
+            $eid = (int) $row['engagement_id'];
+            $w = $db->prepare('UPDATE engagements SET work_stoppage = 0, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+            $w->bindValue(':id', $eid, SQLITE3_INTEGER);
+            $w->execute();
+        }
+        app_log('info', 'Square invoice.payment_made reconciled for ' . $invId);
+        return ['code' => 200, 'payload' => ['success' => true, 'invoice_id' => $invId, 'status' => 'paid']];
+    }
+    return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'event_type', 'type' => $type]];
 }
