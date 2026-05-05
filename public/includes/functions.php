@@ -19,13 +19,13 @@ function dsc_invoicing_web_base_path(): string {
     }
 
     $script = $_SERVER['SCRIPT_NAME'] ?? '';
-    if (preg_match('#^(.+)/admin/[^/]+$#', $script, $m)) {
+    if (preg_match('#^(.*)/admin/[^/]+\.php$#', $script, $m)) {
         return rtrim($m[1], '/');
     }
-    if (preg_match('#^(.+)/admin/[^/]+\.php$#', $script, $m)) {
+    if (preg_match('#^(.*)/api/[^/]+\.php$#', $script, $m)) {
         return rtrim($m[1], '/');
     }
-    if (preg_match('#^(.+)/[^/]+\.php$#', $script, $m)) {
+    if (preg_match('#^(.+)/index\.php$#', $script, $m)) {
         return rtrim($m[1], '/');
     }
 
