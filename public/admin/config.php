@@ -68,6 +68,7 @@ if (is_string($t) && strlen($t) > 12) {
 
 $adminPageTitle = 'Square configuration';
 require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">
