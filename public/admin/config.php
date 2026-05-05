@@ -52,6 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_
     $squareMessageType = 'ok';
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'app_paths') {
+    requireCsrfToken();
+    $webBasePath = trim((string) ($_POST['web_base_path'] ?? ''));
+    set_config('web_base_path', $webBasePath);
+    $squareMessage = 'App path settings saved.';
+    $squareMessageType = 'ok';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_test') {
     requireCsrfToken();
     square_config_reset();
@@ -124,6 +132,18 @@ require_once __DIR__ . '/includes/nav.php';
         <?= csrfField() ?>
         <input type="hidden" name="form" value="square_test">
         <button type="submit" class="btn btn-outline">Test connection (GET /locations)</button>
+    </form>
+</div>
+
+<div class="info-box" style="margin-top:1.5rem;">
+    <h2 style="margin-top:0;">App paths</h2>
+    <p style="color:#8b949e;font-size:.875rem;">Leave blank when vhost document root points at <code>public/</code>. Set to <code>/public</code> if this app is served from the repo root.</p>
+    <form method="POST">
+        <?= csrfField() ?>
+        <input type="hidden" name="form" value="app_paths">
+        <label for="web_base_path">Web base path</label>
+        <input type="text" id="web_base_path" name="web_base_path" value="<?= htmlspecialchars((string) (get_config('web_base_path') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="/public">
+        <button type="submit" class="btn" style="margin-top:1rem;">Save app path</button>
     </form>
 </div>
 
