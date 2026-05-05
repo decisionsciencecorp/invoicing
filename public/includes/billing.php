@@ -345,6 +345,12 @@ function dsc_billing_publish_combined_invoice(SQLite3 $db, int $engagementId, st
     $stamp->bindValue(':p', $overageMonth, SQLITE3_TEXT);
     $stamp->execute();
 
+    $halt = $db->prepare(
+        'UPDATE engagements SET work_stoppage = 1, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+    );
+    $halt->bindValue(':id', $engagementId, SQLITE3_INTEGER);
+    $halt->execute();
+
     return [
         'ok' => true,
         'message' => 'Invoice published.',
