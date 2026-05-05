@@ -1,0 +1,6 @@
+/db/*.db
+/db/*.db-journal
+/logs/*.log
+.env
+.env.*
+!.env.example
