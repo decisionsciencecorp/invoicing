@@ -28,6 +28,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'refresh_invoice_status') {
+    requireCsrfToken();
+    $outboundId = (int) ($_POST['outbound_id'] ?? 0);
+    $res = dsc_billing_refresh_outbound_payment_status($db, $outboundId);
+    if (!empty($res['ok'])) {
+        $flash = 'Payment status refreshed: ' . (string) ($res['payment_status'] ?? 'updated') . '.';
+        $flashType = 'ok';
+    } else {
+        $flash = $res['error'] ?? 'Refresh failed.';
+        $flashType = 'err';
+    }
+}
+
 $selE = (int) ($_GET['engagement_id'] ?? ($_POST['engagement_id'] ?? 0));
 $selM = trim((string) ($_GET['anchor_month'] ?? ($_POST['anchor_month'] ?? gmdate('Y-m'))));
 if (!dsc_billing_valid_month($selM)) {
@@ -139,6 +152,7 @@ require_once __DIR__ . '/includes/nav.php';
                         <th style="padding:0.4rem;text-align:right;">Total</th>
                         <th style="padding:0.4rem;">Paid</th>
                         <th style="padding:0.4rem;">Link</th>
+                        <th style="padding:0.4rem;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -157,6 +171,14 @@ require_once __DIR__ . '/includes/nav.php';
                                 <?php else: ?>
                                     —
                                 <?php endif; ?>
+                            </td>
+                            <td style="padding:0.35rem 0;">
+                                <form method="POST" style="display:inline;">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="form" value="refresh_invoice_status">
+                                    <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
+                                    <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Refresh</button>
+                                </form>
                             </td>
                         </tr>
                     <?php endforeach; ?>

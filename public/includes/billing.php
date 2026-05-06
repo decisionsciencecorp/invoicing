@@ -358,3 +358,71 @@ function dsc_billing_publish_combined_invoice(SQLite3 $db, int $engagementId, st
         'public_url' => $publicUrl !== '' ? $publicUrl : null,
     ];
 }
+
+/**
+ * Poll Square for one outbound invoice row and refresh local payment status.
+ *
+ * @return array{ok:bool, payment_status?:string, public_url?:string, error?:string}
+ */
+function dsc_billing_refresh_outbound_payment_status(SQLite3 $db, int $outboundId): array {
+    if ($outboundId <= 0) {
+        return ['ok' => false, 'error' => 'Invalid outbound invoice id.'];
+    }
+    $st = $db->prepare(
+        'SELECT id, engagement_id, square_invoice_id, payment_status FROM outbound_invoices WHERE id = :id LIMIT 1'
+    );
+    $st->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $row = $st->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'error' => 'Outbound invoice not found.'];
+    }
+    $squareInvoiceId = trim((string) ($row['square_invoice_id'] ?? ''));
+    if ($squareInvoiceId === '') {
+        return ['ok' => false, 'error' => 'No square_invoice_id stored for this row.'];
+    }
+    $resp = dsc_invoicing_square_request('GET', '/invoices/' . rawurlencode($squareInvoiceId), null);
+    if (!$resp['ok']) {
+        return ['ok' => false, 'error' => 'Square retrieve failed: ' . ($resp['error'] ?? 'unknown')];
+    }
+    $inv = $resp['data']['invoice'] ?? null;
+    if (!is_array($inv)) {
+        return ['ok' => false, 'error' => 'Square retrieve returned no invoice object.'];
+    }
+    $squareStatus = strtoupper(trim((string) ($inv['status'] ?? '')));
+    $paymentStatus = match ($squareStatus) {
+        'PAID', 'PARTIALLY_PAID' => 'paid',
+        'UNPAID', 'SCHEDULED', 'SENT', 'VIEWED' => 'published',
+        'CANCELED', 'FAILED' => strtolower($squareStatus),
+        default => strtolower($squareStatus !== '' ? $squareStatus : 'published'),
+    };
+    $publicUrl = trim((string) ($inv['public_url'] ?? ''));
+    $version = isset($inv['version']) ? (int) $inv['version'] : null;
+
+    $up = $db->prepare(
+        'UPDATE outbound_invoices SET payment_status = :ps, public_url = :pu, '
+        . 'square_invoice_version = COALESCE(:sv, square_invoice_version), updated_at = CURRENT_TIMESTAMP '
+        . 'WHERE id = :id'
+    );
+    $up->bindValue(':ps', $paymentStatus, SQLITE3_TEXT);
+    $up->bindValue(':pu', $publicUrl, SQLITE3_TEXT);
+    if ($version === null) {
+        $up->bindValue(':sv', null, SQLITE3_NULL);
+    } else {
+        $up->bindValue(':sv', $version, SQLITE3_INTEGER);
+    }
+    $up->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $up->execute();
+
+    // Keep stoppage policy aligned with paid/unpaid status.
+    $engagementId = (int) ($row['engagement_id'] ?? 0);
+    if ($engagementId > 0) {
+        $w = $db->prepare(
+            'UPDATE engagements SET work_stoppage = :ws, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $w->bindValue(':ws', $paymentStatus === 'paid' ? 0 : 1, SQLITE3_INTEGER);
+        $w->bindValue(':id', $engagementId, SQLITE3_INTEGER);
+        $w->execute();
+    }
+
+    return ['ok' => true, 'payment_status' => $paymentStatus, 'public_url' => $publicUrl];
+}
