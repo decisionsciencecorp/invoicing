@@ -72,6 +72,8 @@ function initializeDatabase(): void {
         $stmt->execute();
     }
 
+    dsc_invoicing_ensure_admin_users_is_active_column($db);
+
     $db->exec("
         CREATE TABLE IF NOT EXISTS api_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,6 +164,25 @@ function initializeDatabase(): void {
 /**
  * Migrate older DB files that predate engagements.work_stoppage.
  */
+function dsc_invoicing_ensure_admin_users_is_active_column(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $has = false;
+    $r = $db->query('PRAGMA table_info(admin_users)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        if (($row['name'] ?? '') === 'is_active') {
+            $has = true;
+            break;
+        }
+    }
+    if (!$has) {
+        $db->exec('ALTER TABLE admin_users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+    }
+}
+
 function dsc_invoicing_ensure_engagement_work_stoppage_column(SQLite3 $db): void {
     static $checked = false;
     if ($checked) {

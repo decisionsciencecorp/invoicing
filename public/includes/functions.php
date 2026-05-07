@@ -71,3 +71,195 @@ function app_log(string $level, string $message): void {
     $line = date('c') . ' [' . $level . '] ' . $message . "\n";
     @file_put_contents(LOG_PATH, $line, FILE_APPEND | LOCK_EX);
 }
+
+function dsc_invoicing_authorization_header(): string {
+    if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+        return (string) $_SERVER['HTTP_AUTHORIZATION'];
+    }
+    if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        return (string) $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    }
+    if (function_exists('apache_request_headers')) {
+        foreach (apache_request_headers() as $k => $v) {
+            if (strcasecmp((string) $k, 'Authorization') === 0) {
+                return is_string($v) ? $v : '';
+            }
+        }
+    }
+
+    return '';
+}
+
+/**
+ * API key from header (X-API-Key), Bearer token, query (?api_key=), or JSON body api_key (POST).
+ *
+ * @return string|null
+ */
+/**
+ * Resolve API key without reading php://input — use after you have decoded JSON ($body may contain api_key).
+ *
+ * @param array<string,mixed>|null $parsedJsonBody
+ */
+function dsc_invoicing_resolve_api_key(?array $parsedJsonBody = null): ?string {
+    if (!empty($_SERVER['HTTP_X_API_KEY'])) {
+        return trim((string) $_SERVER['HTTP_X_API_KEY']);
+    }
+    $auth = dsc_invoicing_authorization_header();
+    if ($auth !== '' && preg_match('/Bearer\s+(\S+)/i', $auth, $m)) {
+        return trim($m[1]);
+    }
+    if (isset($_GET['api_key'])) {
+        return trim((string) $_GET['api_key']);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_key'])) {
+        return trim((string) $_POST['api_key']);
+    }
+    if (is_array($parsedJsonBody) && isset($parsedJsonBody['api_key'])) {
+        return trim((string) $parsedJsonBody['api_key']);
+    }
+
+    return null;
+}
+
+function getApiKey() {
+    if (!empty($_SERVER['HTTP_X_API_KEY'])) {
+        return trim((string) $_SERVER['HTTP_X_API_KEY']);
+    }
+    $auth = dsc_invoicing_authorization_header();
+    if ($auth !== '' && preg_match('/Bearer\s+(\S+)/i', $auth, $m)) {
+        return trim($m[1]);
+    }
+    if (isset($_GET['api_key'])) {
+        return trim((string) $_GET['api_key']);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_POST['api_key'])) {
+            return trim((string) $_POST['api_key']);
+        }
+        $input = file_get_contents('php://input');
+        if ($input !== false && $input !== '') {
+            $data = json_decode($input, true);
+            if (is_array($data) && isset($data['api_key'])) {
+                return trim((string) $data['api_key']);
+            }
+        }
+    }
+
+    return null;
+}
+
+function validateApiKey(?string $apiKey): bool {
+    if ($apiKey === null || $apiKey === '') {
+        return false;
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT id FROM api_keys WHERE api_key = :key');
+    $stmt->bindValue(':key', $apiKey, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    $row = $result->fetchArray(SQLITE3_ASSOC);
+    if ($row) {
+        $up = $db->prepare('UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = :id');
+        $up->bindValue(':id', $row['id'], SQLITE3_INTEGER);
+        $up->execute();
+
+        return true;
+    }
+
+    return false;
+}
+
+function checkRateLimit(string $rateKey, int $limit = 60, int $windowSeconds = 60): bool {
+    $db = getDbConnection();
+    $now = time();
+    $stmt = $db->prepare('SELECT window_start, count FROM api_rate_limits WHERE rate_key = :rate_key');
+    $stmt->bindValue(':rate_key', $rateKey, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    $row = $result->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        $ins = $db->prepare(
+            'INSERT INTO api_rate_limits (rate_key, window_start, count) VALUES (:rate_key, :window_start, :count)'
+        );
+        $ins->bindValue(':rate_key', $rateKey, SQLITE3_TEXT);
+        $ins->bindValue(':window_start', $now, SQLITE3_INTEGER);
+        $ins->bindValue(':count', 1, SQLITE3_INTEGER);
+        $ins->execute();
+
+        return true;
+    }
+    $windowStart = (int) $row['window_start'];
+    $count = (int) $row['count'];
+    if ($now - $windowStart >= $windowSeconds) {
+        $reset = $db->prepare(
+            'UPDATE api_rate_limits SET window_start = :window_start, count = :count WHERE rate_key = :rate_key'
+        );
+        $reset->bindValue(':window_start', $now, SQLITE3_INTEGER);
+        $reset->bindValue(':count', 1, SQLITE3_INTEGER);
+        $reset->bindValue(':rate_key', $rateKey, SQLITE3_TEXT);
+        $reset->execute();
+
+        return true;
+    }
+    if ($count >= $limit) {
+        return false;
+    }
+    $up = $db->prepare('UPDATE api_rate_limits SET count = count + 1 WHERE rate_key = :rate_key');
+    $up->bindValue(':rate_key', $rateKey, SQLITE3_TEXT);
+    $up->execute();
+
+    return true;
+}
+
+function jsonSuccess(array $data = []): void {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array_merge(['success' => true], $data));
+}
+
+function jsonError(string $message, int $code = 400): void {
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $message]);
+}
+
+/** @return array<int, array<string,mixed>> */
+function getAllApiKeys(): array {
+    $db = getDbConnection();
+    $r = $db->query('SELECT id, key_name, api_key, created_at, last_used FROM api_keys ORDER BY created_at DESC');
+    $out = [];
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $row['api_key'] = substr((string) $row['api_key'], 0, 8) . '…';
+        $out[] = $row;
+    }
+
+    return $out;
+}
+
+function createApiKey(string $keyName): string {
+    $keyName = trim($keyName);
+    if ($keyName === '') {
+        $keyName = 'Unnamed';
+    }
+    $db = getDbConnection();
+    $apiKey = bin2hex(random_bytes(32));
+    $stmt = $db->prepare('INSERT INTO api_keys (key_name, api_key) VALUES (:name, :key)');
+    $stmt->bindValue(':name', $keyName, SQLITE3_TEXT);
+    $stmt->bindValue(':key', $apiKey, SQLITE3_TEXT);
+    $stmt->execute();
+
+    return $apiKey;
+}
+
+function deleteApiKey(int $id): void {
+    $db = getDbConnection();
+    $stmt = $db->prepare('DELETE FROM api_keys WHERE id = :id');
+    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    $stmt->execute();
+}
+
+function dsc_invoicing_format_date(?string $date): string {
+    if ($date === null || trim($date) === '') {
+        return '';
+    }
+    $t = strtotime($date);
+
+    return $t !== false ? date('M j, Y', $t) : '';
+}
