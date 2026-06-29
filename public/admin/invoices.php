@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/billing.php';
+require_once __DIR__ . '/../includes/tasks-dsc.php';
 requireAuth();
 
 $db = getDbConnection();
@@ -27,6 +28,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish
         $flashType = 'ok';
     } else {
         $flash = $res['error'] ?? 'Publish failed.';
+        $flashType = 'err';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'attach_tasks_doc') {
+    requireCsrfToken();
+    $outboundId = (int) ($_POST['outbound_id'] ?? 0);
+    $tasksDocId = (int) ($_POST['tasks_document_id'] ?? 0);
+    dsc_billing_hydrate_legacy_outbound_row($db, $outboundId);
+    $res = dsc_billing_attach_tasks_document_to_outbound($db, $outboundId, $tasksDocId);
+    if (!empty($res['ok'])) {
+        $flash = 'Accounting document attached. Client page: ' . ($res['canonical_url'] ?? '');
+        $flashType = 'ok';
+    } else {
+        $flash = $res['error'] ?? 'Attach failed.';
+        $flashType = 'err';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'backfill_psf_docs') {
+    requireCsrfToken();
+    $res = dsc_billing_backfill_psf_invoice_documents($db);
+    if (!empty($res['ok'])) {
+        $flash = 'Backfill complete — ' . (int) ($res['updated'] ?? 0) . ' invoice row(s) updated from PSF Tasks docs.';
+        $flashType = 'ok';
+    } else {
+        $flash = 'Backfill partial: ' . implode('; ', $res['errors'] ?? []);
         $flashType = 'err';
     }
 }
@@ -78,6 +106,11 @@ while ($row = $ir->fetchArray(SQLITE3_ASSOC)) {
     $rows[] = $row;
 }
 
+$accountingDocs = dsc_tasks_list_accounting_documents();
+$tasksBase = dsc_tasks_api_config()['base_url'] !== ''
+    ? dsc_tasks_api_config()['base_url']
+    : 'https://tasks.decisionsciencecorp.com';
+
 $adminPageTitle = 'Invoices';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/nav.php';
@@ -111,12 +144,27 @@ require_once __DIR__ . '/includes/nav.php';
         </select>
         <label for="anchor_month">Anchor month</label>
         <input id="anchor_month" name="anchor_month" type="month" required value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>" style="display:block;margin-bottom:.75rem;">
-        <label for="tasks_document_id">Tasks accounting document id</label>
-        <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" required
-               value="<?= $selDoc > 0 ? (int) $selDoc : '' ?>"
-               placeholder="e.g. 615"
-               style="display:block;margin-bottom:.75rem;max-width:12rem;">
-        <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">Document from <code>tasks.decisionsciencecorp.com</code> — markdown body is snapshotted on publish and shown on the client invoice page.</p>
+        <label for="tasks_document_id">Accounting document (Tasks)</label>
+        <?php if ($accountingDocs !== []): ?>
+            <select id="tasks_document_id" name="tasks_document_id" required style="display:block;margin-bottom:.35rem;max-width:40rem;width:100%;">
+                <option value="">Select time log…</option>
+                <?php foreach ($accountingDocs as $ad): ?>
+                    <option value="<?= (int) $ad['id'] ?>" <?= $selDoc === (int) $ad['id'] ? 'selected' : '' ?>>
+                        #<?= (int) $ad['id'] ?> — <?= htmlspecialchars((string) $ad['title'], ENT_QUOTES, 'UTF-8') ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
+                From <a href="<?= htmlspecialchars($tasksBase . '/admin/project.php?id=' . dsc_tasks_psf_project_id(), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">ProSpikeFlow Work</a> → docs → <code>client-facing</code> time logs.
+            </p>
+        <?php else: ?>
+            <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" required
+                   value="<?= $selDoc > 0 ? (int) $selDoc : '' ?>"
+                   placeholder="Tasks document id"
+                   style="display:block;margin-bottom:.75rem;max-width:12rem;">
+            <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">Configure Tasks API under Square settings, or enter a document id from the PSF board.</p>
+        <?php endif; ?>
+        <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">The markdown body becomes the <strong>client invoice page</strong> (snapshotted at publish).</p>
         <button type="submit" class="btn btn-outline">Preview totals</button>
     </form>
 
@@ -154,6 +202,14 @@ require_once __DIR__ . '/includes/nav.php';
 
 <div class="info-box">
     <h2 style="margin-top:0;">Recent outbound invoices</h2>
+    <?php if ($accountingDocs !== []): ?>
+        <form method="POST" style="margin-bottom:1rem;">
+            <?= csrfField() ?>
+            <input type="hidden" name="form" value="backfill_psf_docs">
+            <button type="submit" class="btn btn-outline">Backfill PSF time logs onto prior invoices</button>
+            <span style="color:#8b949e;font-size:.875rem;margin-left:.5rem;">Outbound #3 → doc 621 (June retainer); #4 → doc 332 (June overage). All rows get client-page tokens.</span>
+        </form>
+    <?php endif; ?>
     <?php if ($rows === []): ?>
         <p style="margin:0;color:#8b949e;">None yet.</p>
     <?php else: ?>
@@ -165,8 +221,7 @@ require_once __DIR__ . '/includes/nav.php';
                         <th style="padding:0.4rem;">Company / engagement</th>
                         <th style="padding:0.4rem;text-align:right;">Total</th>
                         <th style="padding:0.4rem;">Paid</th>
-                        <th style="padding:0.4rem;">Client page</th>
-                        <th style="padding:0.4rem;">Tasks doc</th>
+                        <th style="padding:0.4rem;">Client page (accounting MD)</th>
                         <th style="padding:0.4rem;">Actions</th>
                     </tr>
                 </thead>
@@ -185,21 +240,63 @@ require_once __DIR__ . '/includes/nav.php';
                                 $clientUrl = '';
                                 if (!empty(trim((string) ($x['public_token'] ?? '')))) {
                                     $clientUrl = dsc_billing_canonical_invoice_url((string) $x['public_token']);
-                                } elseif (!empty(trim((string) ($x['public_url'] ?? '')))) {
-                                    $clientUrl = (string) $x['public_url'];
+                                } elseif (!empty(trim((string) ($x['accounting_markdown'] ?? ''))) && !empty(trim((string) ($x['public_url'] ?? '')))) {
+                                    $pu = (string) $x['public_url'];
+                                    if (!str_contains($pu, 'squareup.com')) {
+                                        $clientUrl = $pu;
+                                    }
                                 }
+                                $docTitle = trim((string) ($x['tasks_document_title'] ?? ''));
+                                $docId = (int) ($x['tasks_document_id'] ?? 0);
+                                $hasMd = trim((string) ($x['accounting_markdown'] ?? '')) !== '';
                                 ?>
-                                <?php if ($clientUrl !== ''): ?>
-                                    <a href="<?= htmlspecialchars($clientUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View</a>
+                                <?php if ($clientUrl !== '' && $hasMd): ?>
+                                    <a href="<?= htmlspecialchars($clientUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">
+                                        <?= htmlspecialchars($docTitle !== '' ? $docTitle : 'Client breakdown', ENT_QUOTES, 'UTF-8') ?>
+                                    </a>
+                                    <?php if ($docId > 0): ?>
+                                        <span style="color:#8b949e;"> · </span>
+                                        <a href="<?= htmlspecialchars(dsc_tasks_admin_document_url($docId), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" style="color:#8b949e;">Tasks #<?= $docId ?></a>
+                                    <?php endif; ?>
+                                <?php elseif ($clientUrl !== ''): ?>
+                                    <a href="<?= htmlspecialchars($clientUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Client page</a>
+                                    <span style="color:#8b949e;"> — attach time log for breakdown</span>
+                                    <form method="POST" style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;margin-top:.35rem;">
+                                        <?= csrfField() ?>
+                                        <input type="hidden" name="form" value="attach_tasks_doc">
+                                        <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
+                                        <?php if ($accountingDocs !== []): ?>
+                                            <select name="tasks_document_id" required style="max-width:14rem;font-size:.8rem;">
+                                                <option value="">Attach time log…</option>
+                                                <?php foreach ($accountingDocs as $ad): ?>
+                                                    <option value="<?= (int) $ad['id'] ?>">#<?= (int) $ad['id'] ?> — <?= htmlspecialchars((string) $ad['title'], ENT_QUOTES, 'UTF-8') ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        <?php else: ?>
+                                            <input type="number" name="tasks_document_id" min="1" required placeholder="Doc id" style="width:5rem;font-size:.8rem;">
+                                        <?php endif; ?>
+                                        <button type="submit" class="btn btn-outline" style="padding:0.2rem 0.45rem;font-size:.75rem;">Attach</button>
+                                    </form>
+                                <?php elseif ($docId > 0): ?>
+                                    <a href="<?= htmlspecialchars(dsc_tasks_admin_document_url($docId), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Tasks #<?= $docId ?></a>
+                                    <span style="color:#8b949e;"> — not snapshotted yet</span>
                                 <?php else: ?>
-                                    —
-                                <?php endif; ?>
-                            </td>
-                            <td style="padding:0.35rem 0;">
-                                <?php if (!empty($x['tasks_document_id'])): ?>
-                                    <code>#<?= (int) $x['tasks_document_id'] ?></code>
-                                <?php else: ?>
-                                    —
+                                    <form method="POST" style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;">
+                                        <?= csrfField() ?>
+                                        <input type="hidden" name="form" value="attach_tasks_doc">
+                                        <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
+                                        <?php if ($accountingDocs !== []): ?>
+                                            <select name="tasks_document_id" required style="max-width:14rem;font-size:.8rem;">
+                                                <option value="">Attach time log…</option>
+                                                <?php foreach ($accountingDocs as $ad): ?>
+                                                    <option value="<?= (int) $ad['id'] ?>">#<?= (int) $ad['id'] ?> — <?= htmlspecialchars((string) $ad['title'], ENT_QUOTES, 'UTF-8') ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        <?php else: ?>
+                                            <input type="number" name="tasks_document_id" min="1" required placeholder="Doc id" style="width:5rem;font-size:.8rem;">
+                                        <?php endif; ?>
+                                        <button type="submit" class="btn btn-outline" style="padding:0.2rem 0.45rem;font-size:.75rem;">Attach</button>
+                                    </form>
                                 <?php endif; ?>
                             </td>
                             <td style="padding:0.35rem 0;">

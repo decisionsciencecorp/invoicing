@@ -16,9 +16,19 @@ When you publish a monthly invoice, attach the **Tasks accounting document** (ma
 
 ## Admin flow
 
-1. **Admin → Invoices** — pick engagement, anchor month, **Tasks document id**
+1. **Admin → Invoices** — pick engagement, anchor month, and a **PSF time log** from the dropdown (ProSpikeFlow Work → `client-facing` docs), or enter a Tasks document id manually
 2. Preview totals, then **Publish to Square + client page**
 3. Share the **client page** link (canonical); it lists retainer/overage amounts, due dates, Square pay buttons, and the accounting markdown breakdown
+
+### Legacy invoices
+
+Rows published before P4 may only have Square URLs. Use **Backfill PSF time logs onto prior invoices** on the invoices list (or run `php tools/backfill-psf-invoice-docs.php` on the server) to:
+
+- Generate `public_token` + canonical client URLs
+- Move legacy Square links into retainer/overage columns
+- Attach PSF accounting docs: outbound **#3** → Tasks doc **621** (June retainer), **#4** → doc **332** (June overage)
+
+May 2025 retainer-only row (**#1**) gets tokens/URLs only — no matching time log on the PSF board yet.
 
 ## Configuration
 

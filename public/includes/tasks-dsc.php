@@ -89,3 +89,76 @@ function dsc_tasks_fetch_document(int $documentId): array {
         ],
     ];
 }
+
+/** ProSpikeFlow Work directory project id on Tasks (accounting docs). */
+function dsc_tasks_psf_project_id(): int {
+    if (function_exists('get_config')) {
+        $from = get_config('tasks_psf_project_id');
+        if (is_string($from) && ctype_digit(trim($from))) {
+            return (int) trim($from);
+        }
+    }
+    $env = getenv('TASKS_PSF_PROJECT_ID');
+    if (is_string($env) && ctype_digit(trim($env))) {
+        return (int) trim($env);
+    }
+    return 4;
+}
+
+/**
+ * Time-log / accounting documents for invoice picker (ProSpikeFlow client-facing folder).
+ *
+ * @return list<array{id:int,title:string,directory_path:string}>
+ */
+function dsc_tasks_list_accounting_documents(?int $projectId = null): array {
+    $projectId = $projectId ?? dsc_tasks_psf_project_id();
+    $cfg = dsc_tasks_api_config();
+    if ($cfg['base_url'] === '' || $cfg['api_key'] === '') {
+        return [];
+    }
+    $url = $cfg['base_url'] . '/api/list-documents.php?project_id=' . rawurlencode((string) $projectId)
+        . '&directory_path=' . rawurlencode('client-facing') . '&limit=200';
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTPHEADER => ['X-API-Key: ' . $cfg['api_key'], 'Accept: application/json'],
+    ]);
+    $raw = curl_exec($ch);
+    curl_close($ch);
+    $data = json_decode((string) $raw, true);
+    if (!is_array($data)) {
+        return [];
+    }
+    $docs = $data['documents'] ?? ($data['data']['documents'] ?? []);
+    if (!is_array($docs)) {
+        return [];
+    }
+    $out = [];
+    foreach ($docs as $doc) {
+        if (!is_array($doc)) {
+            continue;
+        }
+        $title = trim((string) ($doc['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        if (!preg_match('/time\s*log|accounting|hours\s*log/i', $title)) {
+            continue;
+        }
+        $out[] = [
+            'id' => (int) ($doc['id'] ?? 0),
+            'title' => $title,
+            'directory_path' => (string) ($doc['directory_path'] ?? ''),
+        ];
+    }
+    usort($out, static fn ($a, $b) => ($b['id'] <=> $a['id']));
+    return $out;
+}
+
+function dsc_tasks_admin_document_url(int $documentId): string {
+    $cfg = dsc_tasks_api_config();
+    $base = $cfg['base_url'] !== '' ? $cfg['base_url'] : 'https://tasks.decisionsciencecorp.com';
+    return rtrim($base, '/') . '/admin/doc.php?id=' . rawurlencode((string) $documentId);
+}

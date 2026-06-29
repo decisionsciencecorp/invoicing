@@ -661,3 +661,165 @@ function dsc_billing_refresh_outbound_payment_status(SQLite3 $db, int $outboundI
 
     return ['ok' => true, 'payment_status' => $aggregate['payment_status'], 'public_url' => $canonical];
 }
+
+/**
+ * Attach (or refresh) a Tasks accounting document onto an outbound invoice row.
+ *
+ * @return array{ok:bool, canonical_url?:string, error?:string}
+ */
+function dsc_billing_attach_tasks_document_to_outbound(SQLite3 $db, int $outboundId, int $tasksDocumentId): array {
+    if ($outboundId <= 0) {
+        return ['ok' => false, 'error' => 'Invalid outbound invoice id.'];
+    }
+    $st = $db->prepare('SELECT * FROM outbound_invoices WHERE id = :id LIMIT 1');
+    $st->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $row = $st->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'error' => 'Outbound invoice not found.'];
+    }
+
+    $fetch = dsc_tasks_fetch_document($tasksDocumentId);
+    if (!$fetch['ok']) {
+        return ['ok' => false, 'error' => $fetch['error'] ?? 'Tasks document fetch failed.'];
+    }
+    $doc = $fetch['document'] ?? null;
+    if (!is_array($doc)) {
+        return ['ok' => false, 'error' => 'Tasks document missing from response.'];
+    }
+
+    $token = trim((string) ($row['public_token'] ?? ''));
+    if ($token === '') {
+        $token = dsc_billing_generate_public_token();
+    }
+    $canonical = dsc_billing_canonical_invoice_url($token);
+
+    $up = $db->prepare(
+        'UPDATE outbound_invoices SET public_token = :pt, public_url = :pu, tasks_document_id = :tdi, '
+        . 'tasks_document_title = :tdt, accounting_markdown = :md, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+    );
+    $up->bindValue(':pt', $token, SQLITE3_TEXT);
+    $up->bindValue(':pu', $canonical, SQLITE3_TEXT);
+    $up->bindValue(':tdi', $tasksDocumentId, SQLITE3_INTEGER);
+    $up->bindValue(':tdt', (string) ($doc['title'] ?? ''), SQLITE3_TEXT);
+    $up->bindValue(':md', (string) ($doc['body'] ?? ''), SQLITE3_TEXT);
+    $up->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $up->execute();
+
+    return ['ok' => true, 'canonical_url' => $canonical];
+}
+
+/**
+ * Legacy rows: ensure public token, map Square URL to retainer/overage slot, set due dates if missing.
+ */
+function dsc_billing_hydrate_legacy_outbound_row(SQLite3 $db, int $outboundId): void {
+    $st = $db->prepare('SELECT * FROM outbound_invoices WHERE id = :id LIMIT 1');
+    $st->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $row = $st->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return;
+    }
+
+    $anchor = (string) ($row['anchor_month'] ?? '');
+    $isOverageOnly = str_ends_with($anchor, '-O')
+        || (((int) ($row['retainer_amount_cents'] ?? 0)) === 0 && ((int) ($row['overage_amount_cents'] ?? 0)) > 0);
+    $isRetainerOnly = str_ends_with($anchor, '-R')
+        || (((int) ($row['overage_amount_cents'] ?? 0)) === 0 && ((int) ($row['retainer_amount_cents'] ?? 0)) > 0);
+
+    $squareUrl = trim((string) ($row['public_url'] ?? ''));
+    $legacySquareUrl = ($squareUrl !== '' && (str_contains($squareUrl, 'squareup.com') || str_contains($squareUrl, 'square.site')))
+        ? $squareUrl
+        : '';
+
+    $squareId = trim((string) ($row['square_invoice_id'] ?? ''));
+    $retainerUrl = trim((string) ($row['retainer_public_url'] ?? ''));
+    $overageUrl = trim((string) ($row['overage_public_url'] ?? ''));
+    $sri = trim((string) ($row['square_retainer_invoice_id'] ?? ''));
+    $soi = trim((string) ($row['square_overage_invoice_id'] ?? ''));
+    if ($retainerUrl === '' && $isRetainerOnly && $legacySquareUrl !== '') {
+        $retainerUrl = $legacySquareUrl;
+    }
+    if ($overageUrl === '' && $isOverageOnly && $legacySquareUrl !== '') {
+        $overageUrl = $legacySquareUrl;
+    }
+    if ($sri === '' && $isRetainerOnly && $squareId !== '') {
+        $sri = $squareId;
+    }
+    if ($soi === '' && $isOverageOnly && $squareId !== '') {
+        $soi = $squareId;
+    }
+
+    $token = trim((string) ($row['public_token'] ?? ''));
+    if ($token === '') {
+        $token = dsc_billing_generate_public_token();
+    }
+    $canonical = dsc_billing_canonical_invoice_url($token);
+
+    $due = dsc_billing_due_dates_for_publish();
+    $retainerDue = trim((string) ($row['retainer_due_date'] ?? ''));
+    if ($retainerDue === '') {
+        $retainerDue = $due['retainer_due_date'];
+    }
+    $overageDue = trim((string) ($row['overage_due_date'] ?? ''));
+    if ($overageDue === '' && (int) ($row['overage_amount_cents'] ?? 0) > 0) {
+        $overageDue = $due['overage_due_date'];
+    }
+
+    $rps = trim((string) ($row['retainer_payment_status'] ?? ''));
+    if ($rps === '' && $isRetainerOnly) {
+        $rps = (string) ($row['payment_status'] ?? 'published');
+    }
+    $ops = trim((string) ($row['overage_payment_status'] ?? ''));
+    if ($ops === '' && $isOverageOnly) {
+        $ops = (string) ($row['payment_status'] ?? 'published');
+    }
+
+    $up = $db->prepare(
+        'UPDATE outbound_invoices SET public_token = :pt, public_url = :pu, '
+        . 'square_retainer_invoice_id = :sri, square_overage_invoice_id = :soi, '
+        . 'retainer_public_url = :rpu, overage_public_url = :opu, '
+        . 'retainer_due_date = :rd, overage_due_date = :od, '
+        . 'retainer_payment_status = :rps, overage_payment_status = :ops, '
+        . 'updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+    );
+    $up->bindValue(':pt', $token, SQLITE3_TEXT);
+    $up->bindValue(':pu', $canonical, SQLITE3_TEXT);
+    $up->bindValue(':sri', $sri !== '' ? $sri : null, $sri !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':soi', $soi !== '' ? $soi : null, $soi !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':rpu', $retainerUrl !== '' ? $retainerUrl : null, $retainerUrl !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':opu', $overageUrl !== '' ? $overageUrl : null, $overageUrl !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':rd', $retainerDue !== '' ? $retainerDue : null, $retainerDue !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':od', $overageDue !== '' ? $overageDue : null, $overageDue !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':rps', $rps !== '' ? $rps : null, $rps !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':ops', $ops !== '' ? $ops : null, $ops !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $up->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $up->execute();
+}
+
+/** @return array{ok:bool, updated:int, errors:list<string>} */
+function dsc_billing_backfill_psf_invoice_documents(SQLite3 $db): array {
+    $map = [
+        3 => 621,
+        4 => 332,
+    ];
+    $updated = 0;
+    $errors = [];
+    $ids = $db->query('SELECT id FROM outbound_invoices ORDER BY id');
+    while ($r = $ids->fetchArray(SQLITE3_ASSOC)) {
+        $oid = (int) ($r['id'] ?? 0);
+        if ($oid <= 0) {
+            continue;
+        }
+        dsc_billing_hydrate_legacy_outbound_row($db, $oid);
+        if (isset($map[$oid])) {
+            $res = dsc_billing_attach_tasks_document_to_outbound($db, $oid, $map[$oid]);
+            if ($res['ok']) {
+                $updated++;
+            } else {
+                $errors[] = 'outbound #' . $oid . ': ' . ($res['error'] ?? 'attach failed');
+            }
+        } else {
+            $updated++;
+        }
+    }
+    return ['ok' => $errors === [], 'updated' => $updated, 'errors' => $errors];
+}
