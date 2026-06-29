@@ -70,9 +70,6 @@ header('Link: <' . $canonical . '>; rel="canonical"');
         .status-pill.paid { background: #23863633; color: #3fb950; }
         .status-pill.published { background: #1f6feb33; color: #58a6ff; }
         .breakdown { margin-top: 2rem; }
-        .breakdown .prose { line-height: 1.55; }
-        .breakdown .prose h2, .breakdown .prose h3, .breakdown .prose h4 { margin-top: 1.25rem; }
-        .breakdown .prose pre { overflow-x: auto; padding: .75rem; background: #0d1117; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -131,7 +128,7 @@ header('Link: <' . $canonical . '>; rel="canonical"');
             <?php if ($docTitle !== ''): ?>
                 <p style="color:#8b949e;margin-top:0;">From Tasks document: <?= htmlspecialchars($docTitle, ENT_QUOTES, 'UTF-8') ?></p>
             <?php endif; ?>
-            <div class="prose"><?= dsc_markdown_to_html($markdown) ?></div>
+            <div class="markdown-body"><?= dsc_markdown_to_html($markdown) ?></div>
         </section>
     <?php endif; ?>
 </main>
