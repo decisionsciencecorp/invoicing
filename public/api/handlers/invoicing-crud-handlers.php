@@ -656,12 +656,16 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         }
         $engId = (int) ($data['engagement_id'] ?? 0);
         $anchor = trim((string) ($data['anchor_month'] ?? ''));
+        $tasksDocId = (int) ($data['tasks_document_id'] ?? 0);
         if ($engId <= 0 || !preg_match('/^\d{4}-\d{2}$/', $anchor)) {
             return ['success' => false, 'code' => 400, 'error' => 'engagement_id and anchor_month (YYYY-MM) required'];
         }
+        if ($tasksDocId <= 0) {
+            return ['success' => false, 'code' => 400, 'error' => 'tasks_document_id is required'];
+        }
         require_once __DIR__ . '/../../includes/billing.php';
         $db = getDbConnection();
-        $res = dsc_billing_publish_combined_invoice($db, $engId, $anchor);
+        $res = dsc_billing_publish_combined_invoice($db, $engId, $anchor, $tasksDocId);
         if (empty($res['ok'])) {
             $msg = $res['error'] ?? 'Publish failed';
             $code = str_contains(strtolower($msg), 'not configured') ? 503 : 400;
@@ -676,6 +680,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
                 'message' => $res['message'] ?? 'Published',
                 'outbound_id' => $res['outbound_id'] ?? null,
                 'public_url' => $res['public_url'] ?? null,
+                'canonical_url' => $res['canonical_url'] ?? null,
             ],
         ];
     }

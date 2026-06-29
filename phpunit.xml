@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <env name="INVOICING_TEST" value="1"/>
+        <env name="DB_PATH" value=":memory:"/>
+        <env name="INVOICING_SQUARE_SKIP_ENV_FILE" value="1"/>
+        <env name="SITE_URL" value="https://invoicing.decisionsciencecorp.com"/>
+    </php>
+</phpunit>

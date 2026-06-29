@@ -60,6 +60,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'app_pat
     $squareMessageType = 'ok';
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'tasks_dsc') {
+    requireCsrfToken();
+    set_config('tasks_dsc_base_url', trim((string) ($_POST['tasks_dsc_base_url'] ?? '')));
+    $key = trim((string) ($_POST['tasks_dsc_api_key'] ?? ''));
+    if ($key !== '') {
+        set_config('tasks_dsc_api_key', $key);
+    }
+    $squareMessage = 'Tasks API settings saved.';
+    $squareMessageType = 'ok';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_test') {
     requireCsrfToken();
     square_config_reset();
@@ -158,6 +169,20 @@ require_once __DIR__ . '/includes/nav.php';
         <label for="square_webhook_signature_key">Signature key (starts with typically whsec_…)</label>
         <textarea id="square_webhook_signature_key" name="square_webhook_signature_key" rows="2" autocomplete="off" placeholder="<?= $whSigStored ? 'Stored — paste a new key to replace' : 'Signature key (whsec…)' ?>"></textarea>
         <button type="submit" class="btn" style="margin-top:1rem;">Save webhook settings</button>
+    </form>
+</div>
+
+<div class="info-box" style="margin-top:1.5rem;">
+    <h2 style="margin-top:0;">Tasks API (accounting documents)</h2>
+    <p style="color:#8b949e;font-size:.875rem;">Used when publishing invoices to fetch and snapshot markdown from <code>tasks.decisionsciencecorp.com</code>. Env vars <code>TASKS_DSC_BASE_URL</code> / <code>TASKS_DSC_OTTOVERNAL_API_KEY</code> override when set on the server.</p>
+    <form method="POST">
+        <?= csrfField() ?>
+        <input type="hidden" name="form" value="tasks_dsc">
+        <label for="tasks_dsc_base_url">Base URL</label>
+        <input type="url" id="tasks_dsc_base_url" name="tasks_dsc_base_url" style="max-width:100%;width:100%;box-sizing:border-box;" value="<?= htmlspecialchars((string) (get_config('tasks_dsc_base_url') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="https://tasks.decisionsciencecorp.com">
+        <label for="tasks_dsc_api_key">API key (leave blank to keep existing)</label>
+        <textarea id="tasks_dsc_api_key" name="tasks_dsc_api_key" rows="2" autocomplete="off" placeholder="X-API-Key value"></textarea>
+        <button type="submit" class="btn" style="margin-top:1rem;">Save Tasks API</button>
     </form>
 </div>
 

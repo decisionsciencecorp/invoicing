@@ -15,10 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish
     requireCsrfToken();
     $eid = (int) ($_POST['engagement_id'] ?? 0);
     $anchor = trim((string) ($_POST['anchor_month'] ?? ''));
-    $res = dsc_billing_publish_combined_invoice($db, $eid, $anchor);
+    $tasksDocId = (int) ($_POST['tasks_document_id'] ?? 0);
+    $res = dsc_billing_publish_combined_invoice($db, $eid, $anchor, $tasksDocId > 0 ? $tasksDocId : null);
     if (!empty($res['ok'])) {
         $flash = $res['message'] ?? 'Published.';
-        if (!empty($res['public_url'])) {
+        if (!empty($res['canonical_url'])) {
+            $flash .= ' Client page: ' . $res['canonical_url'];
+        } elseif (!empty($res['public_url'])) {
             $flash .= ' Payment link: ' . $res['public_url'];
         }
         $flashType = 'ok';
@@ -43,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'refresh
 
 $selE = (int) ($_GET['engagement_id'] ?? ($_POST['engagement_id'] ?? 0));
 $selM = trim((string) ($_GET['anchor_month'] ?? ($_POST['anchor_month'] ?? gmdate('Y-m'))));
+$selDoc = (int) ($_GET['tasks_document_id'] ?? ($_POST['tasks_document_id'] ?? 0));
 if (!dsc_billing_valid_month($selM)) {
     $selM = gmdate('Y-m');
 }
@@ -87,7 +91,7 @@ require_once __DIR__ . '/includes/nav.php';
     </form>
 </div>
 
-<p style="color:#8b949e;margin-top:0;">Retainer for <strong>anchor month</strong> M plus overage billed from prior month <strong>M−1</strong> (per PRD). Uses Square Orders → Invoice → Publish (EMAIL).</p>
+<p style="color:#8b949e;margin-top:0;">Retainer for <strong>anchor month</strong> M plus overage from prior month <strong>M−1</strong>. Requires a <strong>Tasks accounting document</strong> (markdown). Publishes separate Square payment links for retainer and overage when applicable, plus a canonical client breakdown page on this site.</p>
 
 <?php if ($flash !== ''): ?>
     <div class="message <?= $flashType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?></div>
@@ -107,6 +111,12 @@ require_once __DIR__ . '/includes/nav.php';
         </select>
         <label for="anchor_month">Anchor month</label>
         <input id="anchor_month" name="anchor_month" type="month" required value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>" style="display:block;margin-bottom:.75rem;">
+        <label for="tasks_document_id">Tasks accounting document id</label>
+        <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" required
+               value="<?= $selDoc > 0 ? (int) $selDoc : '' ?>"
+               placeholder="e.g. 615"
+               style="display:block;margin-bottom:.75rem;max-width:12rem;">
+        <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">Document from <code>tasks.decisionsciencecorp.com</code> — markdown body is snapshotted on publish and shown on the client invoice page.</p>
         <button type="submit" class="btn btn-outline">Preview totals</button>
     </form>
 
@@ -129,8 +139,12 @@ require_once __DIR__ . '/includes/nav.php';
                     <input type="hidden" name="form" value="publish_invoice">
                     <input type="hidden" name="engagement_id" value="<?= (int) $selE ?>">
                     <input type="hidden" name="anchor_month" value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>">
-                    <button type="submit" class="btn">Publish to Square</button>
+                    <input type="hidden" name="tasks_document_id" value="<?= (int) $selDoc ?>">
+                    <button type="submit" class="btn" <?= $selDoc <= 0 ? 'disabled title="Enter Tasks document id first"' : '' ?>>Publish to Square + client page</button>
                 </form>
+                <?php if ($selDoc <= 0): ?>
+                    <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Enter a Tasks document id before publishing.</p>
+                <?php endif; ?>
             <?php elseif ($preview['total_cents'] <= 0): ?>
                 <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Nothing to bill for this pairing.</p>
             <?php endif; ?>
@@ -151,7 +165,8 @@ require_once __DIR__ . '/includes/nav.php';
                         <th style="padding:0.4rem;">Company / engagement</th>
                         <th style="padding:0.4rem;text-align:right;">Total</th>
                         <th style="padding:0.4rem;">Paid</th>
-                        <th style="padding:0.4rem;">Link</th>
+                        <th style="padding:0.4rem;">Client page</th>
+                        <th style="padding:0.4rem;">Tasks doc</th>
                         <th style="padding:0.4rem;">Actions</th>
                     </tr>
                 </thead>
@@ -166,8 +181,23 @@ require_once __DIR__ . '/includes/nav.php';
                             <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
                             <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
                             <td style="padding:0.35rem 0;">
-                                <?php if (!empty(trim((string) ($x['public_url'] ?? '')))): ?>
-                                    <a href="<?= htmlspecialchars((string) $x['public_url'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Pay</a>
+                                <?php
+                                $clientUrl = '';
+                                if (!empty(trim((string) ($x['public_token'] ?? '')))) {
+                                    $clientUrl = dsc_billing_canonical_invoice_url((string) $x['public_token']);
+                                } elseif (!empty(trim((string) ($x['public_url'] ?? '')))) {
+                                    $clientUrl = (string) $x['public_url'];
+                                }
+                                ?>
+                                <?php if ($clientUrl !== ''): ?>
+                                    <a href="<?= htmlspecialchars($clientUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View</a>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                            <td style="padding:0.35rem 0;">
+                                <?php if (!empty($x['tasks_document_id'])): ?>
+                                    <code>#<?= (int) $x['tasks_document_id'] ?></code>
                                 <?php else: ?>
                                     —
                                 <?php endif; ?>

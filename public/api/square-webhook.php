@@ -14,6 +14,7 @@ require_once __DIR__ . '/../includes/config.php';
 initializeDatabase();
 
 require_once __DIR__ . '/../includes/square.php';
+require_once __DIR__ . '/../includes/billing.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Content-Type: application/json; charset=utf-8');

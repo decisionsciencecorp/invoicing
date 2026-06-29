@@ -159,6 +159,7 @@ function initializeDatabase(): void {
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_outbound_square_invoice ON outbound_invoices(square_invoice_id)');
     dsc_invoicing_ensure_engagement_work_stoppage_column($db);
+    dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
 }
 
 /**
@@ -200,6 +201,43 @@ function dsc_invoicing_ensure_engagement_work_stoppage_column(SQLite3 $db): void
     if (!$has) {
         $db->exec('ALTER TABLE engagements ADD COLUMN work_stoppage INTEGER NOT NULL DEFAULT 0');
     }
+}
+
+/**
+ * P4 — Tasks accounting doc snapshot, public breakdown page, split Square payment links.
+ */
+function dsc_invoicing_ensure_outbound_invoice_breakdown_columns(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $cols = [];
+    $r = $db->query('PRAGMA table_info(outbound_invoices)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $cols[(string) ($row['name'] ?? '')] = true;
+    }
+    $add = static function (string $name, string $ddl) use ($db, $cols): void {
+        if (!isset($cols[$name])) {
+            $db->exec($ddl);
+        }
+    };
+    $add('public_token', 'ALTER TABLE outbound_invoices ADD COLUMN public_token TEXT');
+    $add('tasks_document_id', 'ALTER TABLE outbound_invoices ADD COLUMN tasks_document_id INTEGER');
+    $add('tasks_document_title', 'ALTER TABLE outbound_invoices ADD COLUMN tasks_document_title TEXT');
+    $add('accounting_markdown', 'ALTER TABLE outbound_invoices ADD COLUMN accounting_markdown TEXT');
+    $add('retainer_due_date', 'ALTER TABLE outbound_invoices ADD COLUMN retainer_due_date TEXT');
+    $add('overage_due_date', 'ALTER TABLE outbound_invoices ADD COLUMN overage_due_date TEXT');
+    $add('square_retainer_invoice_id', 'ALTER TABLE outbound_invoices ADD COLUMN square_retainer_invoice_id TEXT');
+    $add('square_overage_invoice_id', 'ALTER TABLE outbound_invoices ADD COLUMN square_overage_invoice_id TEXT');
+    $add('retainer_public_url', 'ALTER TABLE outbound_invoices ADD COLUMN retainer_public_url TEXT');
+    $add('overage_public_url', 'ALTER TABLE outbound_invoices ADD COLUMN overage_public_url TEXT');
+    $add('retainer_payment_status', 'ALTER TABLE outbound_invoices ADD COLUMN retainer_payment_status TEXT');
+    $add('overage_payment_status', 'ALTER TABLE outbound_invoices ADD COLUMN overage_payment_status TEXT');
+    $db->exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbound_public_token ON outbound_invoices(public_token) '
+        . 'WHERE public_token IS NOT NULL AND TRIM(public_token) != \'\''
+    );
 }
 
 function get_config(string $key): ?string {

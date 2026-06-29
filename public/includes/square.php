@@ -235,25 +235,28 @@ function dsc_invoicing_square_webhook_run(SQLite3 $db, string $rawBody, string $
         if ($invId === null) {
             return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'no_invoice_id']];
         }
-        $st = $db->prepare(
-            'UPDATE outbound_invoices SET payment_status = :ps, updated_at = CURRENT_TIMESTAMP '
-            . 'WHERE square_invoice_id = :i'
+        $sel = $db->prepare(
+            'SELECT id FROM outbound_invoices WHERE square_invoice_id = :i '
+            . 'OR square_retainer_invoice_id = :i OR square_overage_invoice_id = :i LIMIT 1'
         );
-        $st->bindValue(':ps', 'paid', SQLITE3_TEXT);
-        $st->bindValue(':i', $invId, SQLITE3_TEXT);
-        $st->execute();
-        $sel = $db->prepare('SELECT engagement_id FROM outbound_invoices WHERE square_invoice_id = :i LIMIT 1');
         $sel->bindValue(':i', $invId, SQLITE3_TEXT);
         $r = $sel->execute();
         $row = $r ? $r->fetchArray(SQLITE3_ASSOC) : false;
-        if ($row && !empty($row['engagement_id'])) {
-            $eid = (int) $row['engagement_id'];
-            $w = $db->prepare('UPDATE engagements SET work_stoppage = 0, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
-            $w->bindValue(':id', $eid, SQLITE3_INTEGER);
-            $w->execute();
+        if (!$row || empty($row['id'])) {
+            app_log('info', 'Square invoice.payment_made for unknown invoice ' . $invId);
+            return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'unknown_invoice', 'invoice_id' => $invId]];
         }
-        app_log('info', 'Square invoice.payment_made reconciled for ' . $invId);
-        return ['code' => 200, 'payload' => ['success' => true, 'invoice_id' => $invId, 'status' => 'paid']];
+        $refresh = dsc_billing_refresh_outbound_payment_status($db, (int) $row['id']);
+        app_log('info', 'Square invoice.payment_made reconciled for ' . $invId . ' outbound #' . (int) $row['id']);
+        return [
+            'code' => 200,
+            'payload' => [
+                'success' => true,
+                'invoice_id' => $invId,
+                'outbound_id' => (int) $row['id'],
+                'payment_status' => $refresh['payment_status'] ?? 'paid',
+            ],
+        ];
     }
     return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'event_type', 'type' => $type]];
 }
