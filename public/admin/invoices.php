@@ -207,7 +207,7 @@ require_once __DIR__ . '/includes/nav.php';
             <?= csrfField() ?>
             <input type="hidden" name="form" value="backfill_psf_docs">
             <button type="submit" class="btn btn-outline">Backfill PSF time logs onto prior invoices</button>
-            <span style="color:#8b949e;font-size:.875rem;margin-left:.5rem;">Outbound #3 → doc 621 (June retainer); #4 → doc 332 (June overage). All rows get client-page tokens.</span>
+            <span style="color:#8b949e;font-size:.875rem;margin-left:.5rem;">Outbound #3 (June retainer) and #4 (May overage) → Tasks doc 332. All rows get client-page tokens.</span>
         </form>
     <?php endif; ?>
     <?php if ($rows === []): ?>

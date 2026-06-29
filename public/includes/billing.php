@@ -798,7 +798,7 @@ function dsc_billing_hydrate_legacy_outbound_row(SQLite3 $db, int $outboundId): 
 /** @return array{ok:bool, updated:int, errors:list<string>} */
 function dsc_billing_backfill_psf_invoice_documents(SQLite3 $db): array {
     $map = [
-        3 => 621,
+        3 => 332,
         4 => 332,
     ];
     $updated = 0;

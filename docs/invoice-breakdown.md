@@ -26,7 +26,7 @@ Rows published before P4 may only have Square URLs. Use **Backfill PSF time logs
 
 - Generate `public_token` + canonical client URLs
 - Move legacy Square links into retainer/overage columns
-- Attach PSF accounting docs: outbound **#3** → Tasks doc **621** (June retainer), **#4** → doc **332** (June overage)
+- Attach PSF accounting docs: outbound **#3** and **#4** → Tasks doc **332** (per PSF invoice tasks #881 / #882)
 
 May 2025 retainer-only row (**#1**) gets tokens/URLs only — no matching time log on the PSF board yet.
 
