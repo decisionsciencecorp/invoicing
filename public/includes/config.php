@@ -21,12 +21,41 @@ if (!defined('LOG_PATH')) {
 
 /**
  * Canonical site origin for absolute URLs (invoice links, webhooks, cookies).
- * Prefers SITE_URL env; otherwise derives from the incoming request on real vhosts.
+ * Order: SITE_URL env → config.site_url in SQLite → request Host header → localhost (dev only).
  */
+function dsc_invoicing_site_url_from_config_db(): ?string {
+    if (!defined('DB_PATH')) {
+        return null;
+    }
+    $path = DB_PATH;
+    if (!is_string($path) || $path === '' || !is_file($path)) {
+        return null;
+    }
+    try {
+        $db = new SQLite3($path, SQLITE3_OPEN_READONLY);
+        $db->busyTimeout(5000);
+        $st = $db->prepare('SELECT value FROM config WHERE key = :k LIMIT 1');
+        $st->bindValue(':k', 'site_url', SQLITE3_TEXT);
+        $row = $st->execute()->fetchArray(SQLITE3_ASSOC);
+        $db->close();
+        if (!is_array($row)) {
+            return null;
+        }
+        $val = trim((string) ($row['value'] ?? ''));
+        return $val !== '' ? rtrim($val, '/') : null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 function dsc_invoicing_resolve_site_url(): string {
     $envSite = getenv('SITE_URL');
     if (is_string($envSite) && trim($envSite) !== '') {
         return rtrim(trim($envSite), '/');
+    }
+    $fromDb = dsc_invoicing_site_url_from_config_db();
+    if ($fromDb !== null) {
+        return $fromDb;
     }
     $host = $_SERVER['HTTP_HOST'] ?? '';
     if ($host !== '' && $host !== 'localhost' && !str_contains($host, '127.0.0.1')) {
