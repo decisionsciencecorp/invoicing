@@ -34,4 +34,12 @@ final class MarkdownRenderTest extends TestCase
         $html = dsc_markdown_to_html('See https://example.com/path for details.');
         $this->assertStringContainsString('href="https://example.com/path"', $html);
     }
+
+    public function testNormalizesPoisonedLiteralNewlines(): void
+    {
+        $poisoned = '# Title\\n\\n| A | B |\\n|---|---|\\n| 1 | 2 |';
+        $html = dsc_markdown_to_html($poisoned);
+        $this->assertStringContainsString('<table>', $html);
+        $this->assertStringContainsString('<h1>Title</h1>', $html);
+    }
 }
