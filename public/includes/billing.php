@@ -47,12 +47,32 @@ function dsc_billing_generate_public_token(): string {
 
 function dsc_billing_canonical_invoice_url(string $publicToken): string {
     $token = trim($publicToken);
-    $site = defined('SITE_URL') ? rtrim((string) SITE_URL, '/') : '';
+    $site = function_exists('dsc_invoicing_public_base_url')
+        ? dsc_invoicing_public_base_url()
+        : (defined('SITE_URL') ? rtrim((string) SITE_URL, '/') : '');
     $path = dsc_invoicing_href('invoice.php?t=' . rawurlencode($token));
     if ($site !== '') {
         return $site . $path;
     }
     return $path;
+}
+
+/** Prefer a stored canonical client URL over rebuilding (avoids stale SITE_URL). */
+function dsc_billing_client_page_url(array $row): string {
+    $stored = trim((string) ($row['public_url'] ?? ''));
+    if (
+        $stored !== ''
+        && str_contains($stored, 'invoice.php')
+        && !str_contains($stored, 'localhost')
+        && !str_contains($stored, '127.0.0.1')
+    ) {
+        return $stored;
+    }
+    $token = trim((string) ($row['public_token'] ?? ''));
+    if ($token !== '') {
+        return dsc_billing_canonical_invoice_url($token);
+    }
+    return '';
 }
 
 function dsc_billing_square_map_invoice_status(string $squareStatus): string {

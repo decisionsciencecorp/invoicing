@@ -56,6 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'app_pat
     requireCsrfToken();
     $webBasePath = trim((string) ($_POST['web_base_path'] ?? ''));
     set_config('web_base_path', $webBasePath);
+    $siteUrl = trim((string) ($_POST['site_url'] ?? ''));
+    set_config('site_url', $siteUrl);
     $squareMessage = 'App path settings saved.';
     $squareMessageType = 'ok';
 }
@@ -148,10 +150,12 @@ require_once __DIR__ . '/includes/nav.php';
 
 <div class="info-box" style="margin-top:1.5rem;">
     <h2 style="margin-top:0;">App paths</h2>
-    <p style="color:#8b949e;font-size:.875rem;">Leave blank when vhost document root points at <code>public/</code>. Set to <code>/public</code> if this app is served from the repo root.</p>
+    <p style="color:#8b949e;font-size:.875rem;">Leave web base path blank when vhost document root points at <code>public/</code>. Set <strong>Site URL</strong> when invoice share links must be absolute (e.g. <code>https://invoicing.decisionsciencecorp.com</code>) — used by CLI/cron when <code>SITE_URL</code> env is unset.</p>
     <form method="POST">
         <?= csrfField() ?>
         <input type="hidden" name="form" value="app_paths">
+        <label for="site_url">Site URL</label>
+        <input type="url" id="site_url" name="site_url" style="max-width:100%;width:100%;box-sizing:border-box;margin-bottom:.75rem;" value="<?= htmlspecialchars((string) (get_config('site_url') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="https://invoicing.decisionsciencecorp.com">
         <label for="web_base_path">Web base path</label>
         <input type="text" id="web_base_path" name="web_base_path" value="<?= htmlspecialchars((string) (get_config('web_base_path') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="/public">
         <button type="submit" class="btn" style="margin-top:1rem;">Save app path</button>

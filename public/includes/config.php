@@ -18,9 +18,28 @@ define('SITE_NAME', 'DSC Invoicing');
 if (!defined('LOG_PATH')) {
     define('LOG_PATH', __DIR__ . '/../../logs/app.log');
 }
-if (!defined('SITE_URL')) {
+
+/**
+ * Canonical site origin for absolute URLs (invoice links, webhooks, cookies).
+ * Prefers SITE_URL env; otherwise derives from the incoming request on real vhosts.
+ */
+function dsc_invoicing_resolve_site_url(): string {
     $envSite = getenv('SITE_URL');
-    define('SITE_URL', (is_string($envSite) && $envSite !== '') ? $envSite : 'http://localhost');
+    if (is_string($envSite) && trim($envSite) !== '') {
+        return rtrim(trim($envSite), '/');
+    }
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($host !== '' && $host !== 'localhost' && !str_contains($host, '127.0.0.1')) {
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443)
+            || (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+        return ($https ? 'https' : 'http') . '://' . $host;
+    }
+    return 'http://localhost';
+}
+
+if (!defined('SITE_URL')) {
+    define('SITE_URL', dsc_invoicing_resolve_site_url());
 }
 
 if (session_status() === PHP_SESSION_NONE && !(defined('DSC_INVOICING_SKIP_SESSION') && DSC_INVOICING_SKIP_SESSION)) {

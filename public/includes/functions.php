@@ -2,6 +2,37 @@
 
 require_once __DIR__ . '/config.php';
 
+/**
+ * Public absolute base URL for share links (CLI/cron may lack HTTP_HOST — use config or env).
+ */
+function dsc_invoicing_public_base_url(): string {
+    static $cached = null;
+    if (is_string($cached)) {
+        return $cached;
+    }
+    $envSite = getenv('SITE_URL');
+    if (is_string($envSite) && trim($envSite) !== '') {
+        return $cached = rtrim(trim($envSite), '/');
+    }
+    if (function_exists('get_config')) {
+        try {
+            $fromCfg = get_config('site_url');
+            if (is_string($fromCfg) && trim($fromCfg) !== '') {
+                return $cached = rtrim(trim($fromCfg), '/');
+            }
+        } catch (Throwable $e) {
+            // config table may not be ready during early bootstrap.
+        }
+    }
+    if (function_exists('dsc_invoicing_resolve_site_url')) {
+        $resolved = dsc_invoicing_resolve_site_url();
+        if ($resolved !== 'http://localhost') {
+            return $cached = $resolved;
+        }
+    }
+    return $cached = defined('SITE_URL') ? rtrim((string) SITE_URL, '/') : 'http://localhost';
+}
+
 function dsc_invoicing_web_base_path(): string {
     $env = getenv('INVOICING_WEB_BASE');
     if (is_string($env) && trim($env) !== '') {

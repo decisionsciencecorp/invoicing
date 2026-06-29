@@ -237,15 +237,7 @@ require_once __DIR__ . '/includes/nav.php';
                             <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
                             <td style="padding:0.35rem 0;">
                                 <?php
-                                $clientUrl = '';
-                                if (!empty(trim((string) ($x['public_token'] ?? '')))) {
-                                    $clientUrl = dsc_billing_canonical_invoice_url((string) $x['public_token']);
-                                } elseif (!empty(trim((string) ($x['accounting_markdown'] ?? ''))) && !empty(trim((string) ($x['public_url'] ?? '')))) {
-                                    $pu = (string) $x['public_url'];
-                                    if (!str_contains($pu, 'squareup.com')) {
-                                        $clientUrl = $pu;
-                                    }
-                                }
+                                $clientUrl = dsc_billing_client_page_url($x);
                                 $docTitle = trim((string) ($x['tasks_document_title'] ?? ''));
                                 $docId = (int) ($x['tasks_document_id'] ?? 0);
                                 $hasMd = trim((string) ($x['accounting_markdown'] ?? '')) !== '';
