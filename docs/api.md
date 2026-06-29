@@ -63,7 +63,7 @@ This file satisfies the Tasks “research checkpoint” + “`docs/api.md` refer
 |--------|------|--------|
 | GET | `list-outbound-invoices.php` | |
 | GET | `get-outbound-invoice.php?id=` | |
-| POST | `publish-combined-invoice.php` | Admin-combined publish behavior (idempotent per product rules) |
+| POST | `publish-combined-invoice.php` | Requires `tasks_document_id`; split retainer/overage Square invoices + canonical client URL |
 
 ## Integrations
 
