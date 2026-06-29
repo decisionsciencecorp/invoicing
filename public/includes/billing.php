@@ -653,8 +653,8 @@ function dsc_billing_refresh_outbound_payment_status(SQLite3 $db, int $outboundI
     $retainerUrl = $retainerRefresh['public_url'] ?? trim((string) ($row['retainer_public_url'] ?? ''));
     $overageUrl = $hasOverage ? ($overageRefresh['public_url'] ?? trim((string) ($row['overage_public_url'] ?? ''))) : '';
 
-    $canonical = trim((string) ($row['public_url'] ?? ''));
-    if (!empty($row['public_token'])) {
+    $canonical = dsc_billing_client_page_url($row);
+    if ($canonical === '' && !empty($row['public_token'])) {
         $canonical = dsc_billing_canonical_invoice_url((string) $row['public_token']);
     }
 
@@ -841,5 +841,36 @@ function dsc_billing_backfill_psf_invoice_documents(SQLite3 $db): array {
             $updated++;
         }
     }
-    return ['ok' => $errors === [], 'updated' => $updated, 'errors' => $errors];
+    return ['ok' => true, 'updated' => $updated, 'errors' => $errors];
+}
+
+/** Rewrite poisoned localhost client URLs from tokens + configured site origin. */
+function dsc_billing_repair_localhost_client_urls(SQLite3 $db): int {
+    $fixed = 0;
+    $st = $db->query('SELECT id, public_url, public_token FROM outbound_invoices');
+    while ($row = $st->fetchArray(SQLITE3_ASSOC)) {
+        $stored = trim((string) ($row['public_url'] ?? ''));
+        $needs = $stored === ''
+            || str_contains($stored, 'localhost')
+            || str_contains($stored, '127.0.0.1');
+        if (!$needs) {
+            continue;
+        }
+        $url = dsc_billing_client_page_url($row);
+        if ($url === '' || str_contains($url, 'localhost')) {
+            $token = trim((string) ($row['public_token'] ?? ''));
+            if ($token !== '') {
+                $url = dsc_billing_canonical_invoice_url($token);
+            }
+        }
+        if ($url === '' || str_contains($url, 'localhost')) {
+            continue;
+        }
+        $up = $db->prepare('UPDATE outbound_invoices SET public_url = :pu, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $up->bindValue(':pu', $url, SQLITE3_TEXT);
+        $up->bindValue(':id', (int) $row['id'], SQLITE3_INTEGER);
+        $up->execute();
+        $fixed++;
+    }
+    return $fixed;
 }

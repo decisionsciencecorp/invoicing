@@ -18,11 +18,21 @@ if (empty($_SERVER['HTTP_HOST'])) {
     $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
 }
 
-require_once $root . '/public/includes/config.php';
-require_once $root . '/public/includes/square.php';
+$deployedPublic = '/var/www/invoicing.decisionsciencecorp.com/html';
+$bootstrap = (is_dir($deployedPublic) && is_file($deployedPublic . '/includes/config.php'))
+    ? $deployedPublic . '/includes/config.php'
+    : $root . '/public/includes/config.php';
+require_once $bootstrap;
+require_once dirname($bootstrap) . '/billing.php';
+require_once dirname($bootstrap) . '/square.php';
 
 initializeDatabase();
 $db = getDbConnection();
+
+$repaired = dsc_billing_repair_localhost_client_urls($db);
+if ($repaired > 0) {
+    fwrite(STDOUT, "Repaired {$repaired} row(s) with localhost client URLs.\n");
+}
 
 $bad = [];
 $rows = $db->query(
