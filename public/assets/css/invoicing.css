@@ -297,6 +297,20 @@ body.inv-skin-lab-active .admin-nav { top: var(--comp-h, 2rem); }
   font-weight: 600;
 }
 
+/* Nested section tabs under a Settings parent page */
+.tabbar.tabbar--sub {
+  margin: -0.35rem 0 1.35rem;
+  border-bottom-color: color-mix(in srgb, var(--inv-border-subtle) 70%, transparent);
+}
+.tabbar.tabbar--sub a {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+}
+.tabbar.tabbar--sub a.active {
+  border-bottom-color: color-mix(in srgb, var(--inv-accent) 85%, var(--inv-text-muted));
+  font-weight: 600;
+}
+
 /* ---------- Status pills ---------- */
 .status-pill {
   display: inline-flex;

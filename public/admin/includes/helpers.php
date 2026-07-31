@@ -23,6 +23,25 @@ function inv_render_page_header(array $opts): void {
     <?php
 }
 
+/**
+ * Secondary tab strip under a Settings (or other) parent page.
+ *
+ * @param array<string, array{0:string,1:string}> $tabs key => [label, href]
+ */
+function inv_render_subtabbar(array $tabs, string $activeKey, string $ariaLabel = 'Section'): void {
+    if ($tabs === []) {
+        return;
+    }
+    ?>
+    <nav class="tabbar tabbar--sub" aria-label="<?= htmlspecialchars($ariaLabel, ENT_QUOTES, 'UTF-8') ?>">
+        <?php foreach ($tabs as $key => [$label, $href]): ?>
+            <a href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>"
+               class="<?= $activeKey === $key ? 'active' : '' ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></a>
+        <?php endforeach; ?>
+    </nav>
+    <?php
+}
+
 function inv_status_pill_class(string $status): string {
     $s = strtolower(trim($status));
     if ($s === 'paid') {

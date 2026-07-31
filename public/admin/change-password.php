@@ -39,14 +39,6 @@ inv_render_page_header([
 ]);
 ?>
 
-<div class="nav-row">
-    <h1>Change password</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
-
 <?php if ($error !== ''): ?>
     <p class="error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
 <?php endif; ?>

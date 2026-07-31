@@ -64,6 +64,11 @@ for (const [sizeName, size] of [
       ['dashboard', '/admin/index.php'],
       ['invoices', '/admin/invoices.php'],
       ['companies', '/admin/companies.php'],
+      ['settings-square', '/admin/config.php'],
+      ['settings-webhooks', '/admin/webhooks.php'],
+      ['settings-webhooks-signing', '/admin/webhooks.php?section=signing'],
+      ['settings-users', '/admin/users.php'],
+      ['settings-site', '/admin/site.php'],
       ['help', '/admin/help.php'],
     ]) {
       await page.goto(`${base}${path}`, { waitUntil: 'networkidle', timeout: 60000 });

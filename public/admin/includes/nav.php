@@ -13,6 +13,8 @@ $isSettingsNav = str_contains($navPath, '/admin/api-keys.php')
     || str_contains($navPath, '/admin/appearance.php')
     || str_contains($navPath, '/admin/config.php')
     || str_contains($navPath, '/admin/webhooks.php')
+    || str_contains($navPath, '/admin/tasks-settings.php')
+    || str_contains($navPath, '/admin/site.php')
     || str_contains($navPath, '/admin/audit-log.php');
 $invNavLight = !empty($GLOBALS['inv_nav_light']);
 $isHelpNav = str_contains($navPath, '/admin/help.php');
@@ -65,6 +67,8 @@ $GLOBALS['inv_nav_path'] = $navPath;
                         <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/api-keys.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-braces me-2" aria-hidden="true"></i>API keys</a></li>
                         <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/config.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-credit-card me-2" aria-hidden="true"></i>Square</a></li>
                         <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/webhooks.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-broadcast me-2" aria-hidden="true"></i>Webhooks</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/tasks-settings.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-list-check me-2" aria-hidden="true"></i>Tasks</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/site.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-globe2 me-2" aria-hidden="true"></i>Site</a></li>
                         <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/audit-log.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Audit log</a></li>
                     </ul>
                 </div>

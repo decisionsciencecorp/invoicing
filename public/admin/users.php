@@ -9,22 +9,29 @@ $db = getDbConnection();
 $message = '';
 $messageType = 'ok';
 $sessionId = (int) ($_SESSION['user_id'] ?? 0);
+$section = (string) ($_GET['section'] ?? 'list');
+if (!in_array($section, ['list', 'create'], true)) {
+    $section = 'list';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
     $action = (string) ($_POST['action'] ?? '');
     if ($action === 'create') {
+        $section = 'create';
         $u = trim((string) ($_POST['username'] ?? ''));
         $p = (string) ($_POST['password'] ?? '');
         $res = dsc_invoicing_admin_create_user($u, $p);
         if ($res['success']) {
             $message = 'User created.';
             $messageType = 'ok';
+            $section = 'list';
         } else {
             $message = $res['error'] ?? 'Create failed.';
             $messageType = 'err';
         }
     } elseif ($action === 'set_password') {
+        $section = 'list';
         $tid = (int) ($_POST['user_id'] ?? 0);
         $np = (string) ($_POST['new_password'] ?? '');
         $res = dsc_invoicing_admin_set_user_password($tid, $np);
@@ -36,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'err';
         }
     } elseif ($action === 'toggle_active') {
+        $section = 'list';
         $tid = (int) ($_POST['user_id'] ?? 0);
         if ($tid === $sessionId) {
             $message = 'You cannot deactivate your own account.';
@@ -73,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'delete') {
+        $section = 'list';
         $tid = (int) ($_POST['user_id'] ?? 0);
         if ($tid === $sessionId) {
             $message = 'You cannot delete your own account.';
@@ -113,44 +122,42 @@ inv_render_page_header([
     'title' => 'Users',
     'subtitle' => 'Admin accounts',
 ]);
-?>
 
-<div class="nav-row">
-    <h1>Admin users</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
+inv_render_subtabbar([
+    'list' => ['Directory', dsc_invoicing_href('admin/users.php?section=list')],
+    'create' => ['Create', dsc_invoicing_href('admin/users.php?section=create')],
+], $section, 'User sections');
+?>
 
 <?php if ($message !== ''): ?>
     <div class="message <?= $messageType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
+<?php if ($section === 'create'): ?>
 <div class="info-box">
-    <h2 style="margin-top:0;">Create user</h2>
+    <h2 class="h5 mt-0">Create user</h2>
     <form method="POST" style="max-width:22rem;">
         <?= csrfField() ?>
         <input type="hidden" name="action" value="create">
         <label for="username">Username</label>
-        <input type="text" id="username" name="username" required autocomplete="off" style="width:100%;box-sizing:border-box;">
-        <label for="password" style="margin-top:0.75rem;">Initial password</label>
-        <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password" style="width:100%;box-sizing:border-box;">
-        <button type="submit" class="btn" style="margin-top:1rem;">Create</button>
+        <input class="form-control" type="text" id="username" name="username" required autocomplete="off">
+        <label for="password">Initial password</label>
+        <input class="form-control" type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+        <button type="submit" class="btn btn-primary mt-3">Create</button>
     </form>
 </div>
-
+<?php else: ?>
 <div class="info-box">
-    <h2 style="margin-top:0;">Users</h2>
-    <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+    <h2 class="h5 mt-0">Directory</h2>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
             <thead>
-                <tr style="text-align:left;border-bottom:1px solid #30363d;">
-                    <th style="padding:0.4rem;">User</th>
-                    <th style="padding:0.4rem;">Created</th>
-                    <th style="padding:0.4rem;">Active</th>
-                    <th style="padding:0.4rem;">Reset password</th>
-                    <th style="padding:0.4rem;"></th>
+                <tr>
+                    <th>User</th>
+                    <th>Created</th>
+                    <th>Active</th>
+                    <th>Reset password</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -159,37 +166,37 @@ inv_render_page_header([
                     $uid = (int) $u['id'];
                     $active = !empty($u['is_active']);
                     ?>
-                    <tr style="border-bottom:1px solid #21262d;vertical-align:top;">
-                        <td style="padding:0.35rem 0;">
+                    <tr>
+                        <td>
                             <strong><?= htmlspecialchars((string) $u['username'], ENT_QUOTES, 'UTF-8') ?></strong>
                             <?php if ($uid === $sessionId): ?>
-                                <span style="color:#8b949e;"> (you)</span>
+                                <span class="text-secondary"> (you)</span>
                             <?php endif; ?>
                         </td>
-                        <td style="padding:0.35rem 0;"><?= htmlspecialchars(dsc_invoicing_format_date((string) ($u['created_at'] ?? '')), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.35rem 0;"><?= $active ? 'yes' : 'no' ?></td>
-                        <td style="padding:0.35rem 0;">
-                            <form method="POST" style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;" autocomplete="off">
+                        <td><?= htmlspecialchars(dsc_invoicing_format_date((string) ($u['created_at'] ?? '')), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= $active ? 'yes' : 'no' ?></td>
+                        <td>
+                            <form method="POST" class="d-flex flex-wrap gap-2 align-items-center" autocomplete="off">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="action" value="set_password">
                                 <input type="hidden" name="user_id" value="<?= $uid ?>">
-                                <input type="password" name="new_password" placeholder="New password" required minlength="8" autocomplete="new-password" style="max-width:10rem;">
-                                <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Reset</button>
+                                <input class="form-control form-control-sm" style="max-width:10rem;" type="password" name="new_password" placeholder="New password" required minlength="8" autocomplete="new-password">
+                                <button type="submit" class="btn btn-outline btn-sm">Reset</button>
                             </form>
                         </td>
-                        <td style="padding:0.35rem 0;text-align:right;">
+                        <td class="text-end">
                             <?php if ($uid !== $sessionId): ?>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('Toggle active status for this user?');">
+                                <form method="POST" class="d-inline" onsubmit="return confirm('Toggle active status for this user?');">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="action" value="toggle_active">
                                     <input type="hidden" name="user_id" value="<?= $uid ?>">
-                                    <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;"><?= $active ? 'Deactivate' : 'Activate' ?></button>
+                                    <button type="submit" class="btn btn-outline btn-sm"><?= $active ? 'Deactivate' : 'Activate' ?></button>
                                 </form>
-                                <form method="POST" style="display:inline;margin-left:0.35rem;" onsubmit="return confirm('Permanently delete this user?');">
+                                <form method="POST" class="d-inline ms-1" onsubmit="return confirm('Permanently delete this user?');">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="action" value="delete">
                                     <input type="hidden" name="user_id" value="<?= $uid ?>">
-                                    <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Delete</button>
+                                    <button type="submit" class="btn btn-outline btn-sm">Delete</button>
                                 </form>
                             <?php endif; ?>
                         </td>
@@ -199,5 +206,6 @@ inv_render_page_header([
         </table>
     </div>
 </div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

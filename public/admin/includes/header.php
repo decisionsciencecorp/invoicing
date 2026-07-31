@@ -8,7 +8,7 @@ require_once __DIR__ . '/helpers.php';
 
 $adminPageTitle = $adminPageTitle ?? 'Admin';
 $invHideNav = !empty($invHideNav);
-$invCssVersion = '5';
+$invCssVersion = '6';
 $cssHref = dsc_invoicing_href('assets/css/invoicing.css') . '?v=' . $invCssVersion;
 $bsCssHref = dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3';
 $biCssHref = dsc_invoicing_href('assets/vendor/bootstrap-icons/font/bootstrap-icons.min.css') . '?v=1.11.3';
@@ -91,8 +91,14 @@ window.__INV_SKIN_LAB__ = {
         $settingsTab = 'api-keys';
     } elseif (str_contains($navPath, 'webhooks.php')) {
         $settingsTab = 'webhooks';
+    } elseif (str_contains($navPath, 'tasks-settings.php')) {
+        $settingsTab = 'tasks';
+    } elseif (str_contains($navPath, 'site.php')) {
+        $settingsTab = 'site';
     } elseif (str_contains($navPath, 'audit-log.php')) {
         $settingsTab = 'audit';
+    } elseif (str_contains($navPath, 'config.php')) {
+        $settingsTab = 'square';
     }
     $settingsTabs = [
         'password' => ['Password', 'admin/change-password.php'],
@@ -101,6 +107,8 @@ window.__INV_SKIN_LAB__ = {
         'api-keys' => ['API keys', 'admin/api-keys.php'],
         'square' => ['Square', 'admin/config.php'],
         'webhooks' => ['Webhooks', 'admin/webhooks.php'],
+        'tasks' => ['Tasks', 'admin/tasks-settings.php'],
+        'site' => ['Site', 'admin/site.php'],
         'audit' => ['Audit log', 'admin/audit-log.php'],
     ];
     ?>
