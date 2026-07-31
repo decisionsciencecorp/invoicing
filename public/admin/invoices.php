@@ -11,6 +11,7 @@ $db = getDbConnection();
 
 $flash = '';
 $flashType = 'ok';
+$forceTab = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish_invoice') {
     requireCsrfToken();
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'attach_tasks_doc') {
     requireCsrfToken();
+    $forceTab = 'list';
     $outboundId = (int) ($_POST['outbound_id'] ?? 0);
     $tasksDocId = (int) ($_POST['tasks_document_id'] ?? 0);
     dsc_billing_hydrate_legacy_outbound_row($db, $outboundId);
@@ -56,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'attach_
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'backfill_psf_docs') {
     requireCsrfToken();
+    $forceTab = 'list';
     $res = dsc_billing_backfill_psf_invoice_documents($db);
     if (!empty($res['ok'])) {
         $flash = 'Backfill complete — ' . (int) ($res['updated'] ?? 0) . ' invoice row(s) updated from PSF Tasks docs.';
@@ -68,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'backfil
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'refresh_invoice_status') {
     requireCsrfToken();
+    $forceTab = 'list';
     $outboundId = (int) ($_POST['outbound_id'] ?? 0);
     $res = dsc_billing_refresh_outbound_payment_status($db, $outboundId);
     if (!empty($res['ok'])) {
@@ -86,6 +90,13 @@ $selTier = dsc_billing_normalize_tier_key((string) ($_GET['tier_key'] ?? ($_POST
 if (!dsc_billing_valid_month($selM)) {
     $selM = gmdate('Y-m');
 }
+
+$tab = strtolower(trim((string) ($forceTab ?? $_GET['tab'] ?? 'publish')));
+if ($tab !== 'list') {
+    $tab = 'publish';
+}
+$listPageSize = 25;
+$listPage = max(1, (int) ($_GET['page'] ?? 1));
 
 $selEngMode = 'hourly';
 $selEngRow = null;
@@ -119,15 +130,26 @@ while ($row = $er->fetchArray(SQLITE3_ASSOC)) {
     $engList[] = $row;
 }
 
+$listTotal = (int) $db->querySingle('SELECT COUNT(*) FROM outbound_invoices');
+$listPages = max(1, (int) ceil($listTotal / $listPageSize));
+if ($listPage > $listPages) {
+    $listPage = $listPages;
+}
+$listOffset = ($listPage - 1) * $listPageSize;
+
 $rows = [];
-$ir = $db->query(
+$ir = $db->prepare(
     'SELECT o.*, e.name AS engagement_name, c.name AS company_name '
     . 'FROM outbound_invoices o '
     . 'JOIN engagements e ON e.id = o.engagement_id '
     . 'JOIN companies c ON c.id = e.company_id '
-    . 'ORDER BY o.anchor_month DESC, c.name COLLATE NOCASE LIMIT 100'
+    . 'ORDER BY o.anchor_month DESC, o.id DESC, c.name COLLATE NOCASE '
+    . 'LIMIT :lim OFFSET :off'
 );
-while ($row = $ir->fetchArray(SQLITE3_ASSOC)) {
+$ir->bindValue(':lim', $listPageSize, SQLITE3_INTEGER);
+$ir->bindValue(':off', $listOffset, SQLITE3_INTEGER);
+$irq = $ir->execute();
+while ($row = $irq->fetchArray(SQLITE3_ASSOC)) {
     $rows[] = $row;
 }
 
@@ -136,13 +158,21 @@ $tasksBase = dsc_tasks_api_config()['base_url'] !== ''
     ? dsc_tasks_api_config()['base_url']
     : 'https://tasks.decisionsciencecorp.com';
 
+$invoicesBase = dsc_invoicing_href('admin/invoices.php');
+$publishTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=publish';
+$listTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=list';
+$listPageUrl = static function (int $page) use ($invoicesBase): string {
+    $sep = str_contains($invoicesBase, '?') ? '&' : '?';
+    return $invoicesBase . $sep . 'tab=list&page=' . max(1, $page);
+};
+
 $adminPageTitle = 'Invoices';
 require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">
-    <h1>Combined monthly invoices</h1>
+    <h1>Invoices</h1>
     <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
         <?= csrfField() ?>
         <button type="submit" class="btn">Logout</button>
@@ -158,6 +188,18 @@ require_once __DIR__ . '/includes/nav.php';
     <div class="message <?= $flashType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
+<nav class="inv-tabbar" aria-label="Invoices sections" style="display:flex;gap:0;margin:1rem 0 1.25rem;border-bottom:1px solid #30363d;">
+    <a href="<?= htmlspecialchars($publishTabUrl, ENT_QUOTES, 'UTF-8') ?>"
+       style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $tab === 'publish' ? '#58a6ff' : 'transparent' ?>;color:<?= $tab === 'publish' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $tab === 'publish' ? '600' : '400' ?>;">
+        Publish
+    </a>
+    <a href="<?= htmlspecialchars($listPageUrl(1), ENT_QUOTES, 'UTF-8') ?>"
+       style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $tab === 'list' ? '#58a6ff' : 'transparent' ?>;color:<?= $tab === 'list' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $tab === 'list' ? '600' : '400' ?>;">
+        List<?= $listTotal > 0 ? ' (' . $listTotal . ')' : '' ?>
+    </a>
+</nav>
+
+<?php if ($tab === 'publish'): ?>
 <div class="info-box">
     <h2 style="margin-top:0;">Publish invoice</h2>
     <form method="GET" id="invoice-preview-form" style="margin-bottom:1rem;">
@@ -268,9 +310,9 @@ require_once __DIR__ . '/includes/nav.php';
         <?php endif; ?>
     <?php endif; ?>
 </div>
-
+<?php else: /* list tab */ ?>
 <div class="info-box">
-    <h2 style="margin-top:0;">Recent outbound invoices</h2>
+    <h2 style="margin-top:0;">Invoice list</h2>
     <?php if ($accountingDocs !== []): ?>
         <form method="POST" style="margin-bottom:1rem;">
             <?= csrfField() ?>
@@ -282,6 +324,11 @@ require_once __DIR__ . '/includes/nav.php';
     <?php if ($rows === []): ?>
         <p style="margin:0;color:#8b949e;">None yet.</p>
     <?php else: ?>
+        <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
+            Showing <?= (int) ($listOffset + 1) ?>–<?= (int) min($listOffset + count($rows), $listTotal) ?>
+            of <?= (int) $listTotal ?>
+            · page <?= (int) $listPage ?> of <?= (int) $listPages ?>
+        </p>
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
                 <thead>
@@ -387,7 +434,28 @@ require_once __DIR__ . '/includes/nav.php';
                 </tbody>
             </table>
         </div>
+        <?php if ($listPages > 1): ?>
+            <nav aria-label="Invoice list pages" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;">
+                <?php if ($listPage > 1): ?>
+                    <a class="btn btn-outline" href="<?= htmlspecialchars($listPageUrl($listPage - 1), ENT_QUOTES, 'UTF-8') ?>">← Prev</a>
+                <?php endif; ?>
+                <?php
+                $windowStart = max(1, $listPage - 2);
+                $windowEnd = min($listPages, $listPage + 2);
+                for ($p = $windowStart; $p <= $windowEnd; $p++):
+                ?>
+                    <a href="<?= htmlspecialchars($listPageUrl($p), ENT_QUOTES, 'UTF-8') ?>"
+                       style="padding:.25rem .55rem;text-decoration:none;border-radius:4px;<?= $p === $listPage ? 'background:#1f6feb;color:#fff;' : 'color:#58a6ff;' ?>">
+                        <?= (int) $p ?>
+                    </a>
+                <?php endfor; ?>
+                <?php if ($listPage < $listPages): ?>
+                    <a class="btn btn-outline" href="<?= htmlspecialchars($listPageUrl($listPage + 1), ENT_QUOTES, 'UTF-8') ?>">Next →</a>
+                <?php endif; ?>
+            </nav>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
