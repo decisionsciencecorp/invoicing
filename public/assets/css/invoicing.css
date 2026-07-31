@@ -177,15 +177,19 @@ body.inv-app {
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
     flex-wrap: nowrap !important;
+    overflow: visible;
   }
-  .admin-nav .inv-nav-end-dropdown { position: static; }
+  .admin-nav .inv-nav-cluster > .btn,
+  .admin-nav .inv-nav-cluster > .dropdown {
+    flex: 0 0 auto;
+    width: auto !important;
+    max-width: none;
+  }
+  /* Anchor under the Settings toggle (not the navbar's right edge). */
+  .admin-nav .inv-nav-end-dropdown {
+    position: relative;
+  }
   .admin-nav .inv-nav-end-dropdown .dropdown-menu {
-    position: absolute !important;
-    top: calc(100% - 0.15rem) !important;
-    right: 0.75rem !important;
-    left: auto !important;
-    margin-top: 0 !important;
-    transform: none !important;
     min-width: 12.5rem;
   }
 }
