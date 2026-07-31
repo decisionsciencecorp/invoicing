@@ -160,21 +160,24 @@ require_once __DIR__ . '/includes/nav.php';
 
 <div class="info-box">
     <h2 style="margin-top:0;">Publish invoice</h2>
-    <form method="GET" style="margin-bottom:1rem;">
+    <form method="GET" id="invoice-preview-form" style="margin-bottom:1rem;">
         <label for="engagement_id">Engagement</label>
-        <select id="engagement_id" name="engagement_id" required style="display:block;margin-bottom:.75rem;max-width:40rem;width:100%;">
+        <select id="engagement_id" name="engagement_id" required style="display:block;margin-bottom:.75rem;max-width:40rem;width:100%;"
+                data-reload-on-change="1">
             <option value="">Select…</option>
             <?php foreach ($engList as $eg): ?>
-                <option value="<?= (int) $eg['id'] ?>" <?= $selE === (int) $eg['id'] ? 'selected' : '' ?>>
+                <option value="<?= (int) $eg['id'] ?>"
+                        data-billing-mode="<?= htmlspecialchars((string) ($eg['billing_mode'] ?? 'hourly'), ENT_QUOTES, 'UTF-8') ?>"
+                        <?= $selE === (int) $eg['id'] ? 'selected' : '' ?>>
                     <?= htmlspecialchars((string) $eg['cn'], ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars((string) $eg['en'], ENT_QUOTES, 'UTF-8') ?>
-                    <?= (($eg['billing_mode'] ?? '') === 'flat_tier') ? ' [flat/tier]' : '' ?>
+                    <?= (($eg['billing_mode'] ?? '') === 'flat_tier') ? ' [flat/tier]' : ' [hourly]' ?>
                 </option>
             <?php endforeach; ?>
         </select>
-        <label for="anchor_month">Anchor month</label>
+        <label for="anchor_month">Billing month</label>
         <input id="anchor_month" name="anchor_month" type="month" required value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>" style="display:block;margin-bottom:.75rem;">
         <?php if ($isFlatPreview): ?>
-            <label for="tier_key">Program tier (Jim/Acquire approval; default Tier 1)</label>
+            <label for="tier_key">Program tier (default Tier 1)</label>
             <select id="tier_key" name="tier_key" style="display:block;margin-bottom:.75rem;max-width:20rem;">
                 <option value="tier1" <?= $selTier === 'tier1' ? 'selected' : '' ?>>
                     Tier 1 — $<?= number_format(((int) ($selEngRow['tier1_amount_cents'] ?? 0)) / 100, 2) ?>
@@ -183,30 +186,44 @@ require_once __DIR__ . '/includes/nav.php';
                     Tier 2 — $<?= number_format(((int) ($selEngRow['tier2_amount_cents'] ?? 0)) / 100, 2) ?>
                 </option>
             </select>
-        <?php endif; ?>
-        <label for="tasks_document_id">Accounting document (Tasks)<?= $isFlatPreview ? ' — optional for flat/tier' : '' ?></label>
-        <?php if ($accountingDocs !== []): ?>
-            <select id="tasks_document_id" name="tasks_document_id" <?= $isFlatPreview ? '' : 'required' ?> style="display:block;margin-bottom:.35rem;max-width:40rem;width:100%;">
-                <option value=""><?= $isFlatPreview ? 'None (optional)…' : 'Select time log…' ?></option>
-                <?php foreach ($accountingDocs as $ad): ?>
-                    <option value="<?= (int) $ad['id'] ?>" <?= $selDoc === (int) $ad['id'] ? 'selected' : '' ?>>
-                        #<?= (int) $ad['id'] ?> — <?= htmlspecialchars((string) $ad['title'], ENT_QUOTES, 'UTF-8') ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
             <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
-                From <a href="<?= htmlspecialchars($tasksBase . '/admin/project.php?id=' . dsc_tasks_psf_project_id(), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">ProSpikeFlow Work</a> → docs → <code>client-facing</code> time logs.
+                Flat/tier invoices do <strong>not</strong> use a time log. Publish with the selected tier amount (Net 30).
             </p>
         <?php else: ?>
-            <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" <?= $isFlatPreview ? '' : 'required' ?>
-                   value="<?= $selDoc > 0 ? (int) $selDoc : '' ?>"
-                   placeholder="Tasks document id"
-                   style="display:block;margin-bottom:.75rem;max-width:12rem;">
-            <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">Configure Tasks API under Square settings, or enter a document id from the PSF board.</p>
+            <label for="tasks_document_id">Accounting document (Tasks) — required for hourly</label>
+            <?php if ($accountingDocs !== []): ?>
+                <select id="tasks_document_id" name="tasks_document_id" required style="display:block;margin-bottom:.35rem;max-width:40rem;width:100%;">
+                    <option value="">Select time log…</option>
+                    <?php foreach ($accountingDocs as $ad): ?>
+                        <option value="<?= (int) $ad['id'] ?>" <?= $selDoc === (int) $ad['id'] ? 'selected' : '' ?>>
+                            #<?= (int) $ad['id'] ?> — <?= htmlspecialchars((string) $ad['title'], ENT_QUOTES, 'UTF-8') ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
+                    From <a href="<?= htmlspecialchars($tasksBase . '/admin/project.php?id=' . dsc_tasks_psf_project_id(), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">ProSpikeFlow Work</a> → docs → <code>client-facing</code> time logs.
+                    The markdown body becomes the <strong>client invoice page</strong> (snapshotted at publish).
+                </p>
+            <?php else: ?>
+                <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" required
+                       value="<?= $selDoc > 0 ? (int) $selDoc : '' ?>"
+                       placeholder="Tasks document id"
+                       style="display:block;margin-bottom:.75rem;max-width:12rem;">
+                <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">Configure Tasks API under Square settings, or enter a document id from the PSF board.</p>
+            <?php endif; ?>
         <?php endif; ?>
-        <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">The markdown body becomes the <strong>client invoice page</strong> (snapshotted at publish) when provided.</p>
         <button type="submit" class="btn btn-outline">Preview totals</button>
     </form>
+    <script>
+    (function () {
+      var sel = document.getElementById('engagement_id');
+      var form = document.getElementById('invoice-preview-form');
+      if (!sel || !form) return;
+      sel.addEventListener('change', function () {
+        if (sel.value) form.submit();
+      });
+    })();
+    </script>
 
     <?php if ($preview !== null): ?>
         <?php if (isset($preview['error'])): ?>
@@ -243,7 +260,7 @@ require_once __DIR__ . '/includes/nav.php';
                     <button type="submit" class="btn" <?= !$canPublish ? 'disabled title="Enter Tasks document id first"' : '' ?>>Publish to Square + client page</button>
                 </form>
                 <?php if (!$canPublish): ?>
-                    <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Enter a Tasks document id before publishing.</p>
+                    <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Select a Tasks time-log document before publishing this hourly invoice.</p>
                 <?php endif; ?>
             <?php elseif ($preview['total_cents'] <= 0): ?>
                 <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Nothing to bill for this pairing.</p>
@@ -269,32 +286,46 @@ require_once __DIR__ . '/includes/nav.php';
             <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
                 <thead>
                     <tr style="text-align:left;border-bottom:1px solid #30363d;">
-                        <th style="padding:0.4rem;">Anchor</th>
+                        <th style="padding:0.4rem;">Month</th>
                         <th style="padding:0.4rem;">Company / engagement</th>
+                        <th style="padding:0.4rem;">Mode</th>
                         <th style="padding:0.4rem;text-align:right;">Total</th>
                         <th style="padding:0.4rem;">Paid</th>
-                        <th style="padding:0.4rem;">Client page (accounting MD)</th>
+                        <th style="padding:0.4rem;">Client page</th>
                         <th style="padding:0.4rem;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($rows as $x): ?>
+                        <?php
+                        $rowMode = (($x['billing_mode'] ?? '') === 'flat_tier') ? 'flat_tier' : 'hourly';
+                        $isFlatRow = $rowMode === 'flat_tier';
+                        $clientUrl = dsc_billing_client_page_url($x);
+                        $docTitle = trim((string) ($x['tasks_document_title'] ?? ''));
+                        $docId = (int) ($x['tasks_document_id'] ?? 0);
+                        $hasMd = trim((string) ($x['accounting_markdown'] ?? '')) !== '';
+                        ?>
                         <tr style="border-bottom:1px solid #21262d;">
                             <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['anchor_month'], ENT_QUOTES, 'UTF-8') ?></code></td>
                             <td style="padding:0.35rem 0;">
                                 <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
                                 <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>
                             </td>
+                            <td style="padding:0.35rem 0;">
+                                <?= $isFlatRow
+                                    ? 'Flat / tier' . (!empty($x['tier_key']) ? ' (' . htmlspecialchars(dsc_billing_tier_label((string) $x['tier_key']), ENT_QUOTES, 'UTF-8') . ')' : '')
+                                    : 'Hourly' ?>
+                            </td>
                             <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
                             <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
                             <td style="padding:0.35rem 0;">
-                                <?php
-                                $clientUrl = dsc_billing_client_page_url($x);
-                                $docTitle = trim((string) ($x['tasks_document_title'] ?? ''));
-                                $docId = (int) ($x['tasks_document_id'] ?? 0);
-                                $hasMd = trim((string) ($x['accounting_markdown'] ?? '')) !== '';
-                                ?>
-                                <?php if ($clientUrl !== '' && $hasMd): ?>
+                                <?php if ($isFlatRow): ?>
+                                    <?php if ($clientUrl !== ''): ?>
+                                        <a href="<?= htmlspecialchars($clientUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Client page</a>
+                                    <?php else: ?>
+                                        <span style="color:#8b949e;">—</span>
+                                    <?php endif; ?>
+                                <?php elseif ($clientUrl !== '' && $hasMd): ?>
                                     <a href="<?= htmlspecialchars($clientUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">
                                         <?= htmlspecialchars($docTitle !== '' ? $docTitle : 'Client breakdown', ENT_QUOTES, 'UTF-8') ?>
                                     </a>

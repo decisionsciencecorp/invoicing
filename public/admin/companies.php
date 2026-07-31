@@ -13,6 +13,18 @@ $r = $db->query(
     'FROM companies c ORDER BY c.name COLLATE NOCASE'
 );
 while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+    $modes = [];
+    $ms = $db->prepare(
+        'SELECT DISTINCT COALESCE(billing_mode, \'hourly\') AS billing_mode '
+        . 'FROM engagements WHERE company_id = :c ORDER BY billing_mode'
+    );
+    $ms->bindValue(':c', (int) $row['id'], SQLITE3_INTEGER);
+    $mx = $ms->execute();
+    while ($m = $mx->fetchArray(SQLITE3_ASSOC)) {
+        $bm = (string) ($m['billing_mode'] ?? 'hourly');
+        $modes[] = $bm === 'flat_tier' ? 'Flat / tier' : 'Hourly';
+    }
+    $row['billing_modes_label'] = $modes === [] ? '—' : implode(', ', $modes);
     $list[] = $row;
 }
 
@@ -41,6 +53,7 @@ require_once __DIR__ . '/includes/nav.php';
             <thead>
                 <tr style="text-align:left;border-bottom:1px solid #30363d;">
                     <th style="padding:0.4rem 0;">Name</th>
+                    <th style="padding:0.4rem 0;">Billing</th>
                     <th style="padding:0.4rem 0;">Billing email</th>
                     <th style="padding:0.4rem 0;">Square customer</th>
                     <th style="padding:0.4rem 0;">Engagements</th>
@@ -52,6 +65,7 @@ require_once __DIR__ . '/includes/nav.php';
                         <td style="padding:0.35rem 0;">
                             <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/company-edit.php?id=' . (int) $c['id']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $c['name'], ENT_QUOTES, 'UTF-8') ?></a>
                         </td>
+                        <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($c['billing_modes_label'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($c['billing_email'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="padding:0.35rem 0;"><code style="font-size:0.8rem;"><?= htmlspecialchars((string) ($c['square_customer_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td>
                         <td style="padding:0.35rem 0;">
