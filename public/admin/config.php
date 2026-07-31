@@ -103,7 +103,6 @@ $whSigStored = trim((string) (get_config('square_webhook_signature_key') ?? ''))
 
 $adminPageTitle = 'Square configuration';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">

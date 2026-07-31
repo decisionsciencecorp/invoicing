@@ -3,8 +3,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../includes/csrf.php';
 require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/helpers.php';
 
 $adminPageTitle = $adminPageTitle ?? 'Admin';
+$invHideNav = !empty($invHideNav);
+$invCssVersion = '2';
+$cssHref = dsc_invoicing_href('assets/css/invoicing.css') . '?v=' . $invCssVersion;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -12,14 +16,56 @@ $adminPageTitle = $adminPageTitle ?? 'Admin';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($adminPageTitle, ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars(SITE_NAME, ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?= htmlspecialchars($cssHref, ENT_QUOTES, 'UTF-8') ?>">
 </head>
-<body>
-    <header class="header">
-        <div class="header-content">
-            <h1 class="site-title"><?= htmlspecialchars(SITE_NAME, ENT_QUOTES, 'UTF-8') ?></h1>
-            <p class="site-subtitle">Admin</p>
-        </div>
-    </header>
-    <div class="container">
+<body class="inv-app">
+<?php if (!$invHideNav): ?>
+    <?php require __DIR__ . '/nav.php'; ?>
+<?php endif; ?>
+    <div class="inv-shell">
+<?php if (!$invHideNav && !empty($GLOBALS['inv_is_time_nav'])): ?>
+    <?php
+    $navPath = (string) ($GLOBALS['inv_nav_path'] ?? '');
+    $timeTab = str_contains($navPath, 'report-hours.php') ? 'rollup' : 'entries';
+    ?>
+        <nav class="tabbar" aria-label="Time sections">
+            <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>"
+               class="<?= $timeTab === 'entries' ? 'active' : '' ?>">Time entries</a>
+            <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/report-hours.php'), ENT_QUOTES, 'UTF-8') ?>"
+               class="<?= $timeTab === 'rollup' ? 'active' : '' ?>">Hours rollup</a>
+        </nav>
+<?php endif; ?>
+<?php if (!$invHideNav && !empty($GLOBALS['inv_is_settings_nav'])): ?>
+    <?php
+    $navPath = (string) ($GLOBALS['inv_nav_path'] ?? '');
+    $settingsTab = 'square';
+    if (str_contains($navPath, 'change-password.php')) {
+        $settingsTab = 'password';
+    } elseif (str_contains($navPath, 'users.php')) {
+        $settingsTab = 'users';
+    } elseif (str_contains($navPath, 'api-keys.php')) {
+        $settingsTab = 'api-keys';
+    } elseif (str_contains($navPath, 'webhooks.php')) {
+        $settingsTab = 'webhooks';
+    } elseif (str_contains($navPath, 'audit-log.php')) {
+        $settingsTab = 'audit';
+    }
+    $settingsTabs = [
+        'password' => ['Password', 'admin/change-password.php'],
+        'users' => ['Users', 'admin/users.php'],
+        'api-keys' => ['API keys', 'admin/api-keys.php'],
+        'square' => ['Square', 'admin/config.php'],
+        'webhooks' => ['Webhooks', 'admin/webhooks.php'],
+        'audit' => ['Audit log', 'admin/audit-log.php'],
+    ];
+    ?>
+        <nav class="tabbar" aria-label="Settings sections">
+            <?php foreach ($settingsTabs as $key => [$label, $href]): ?>
+                <a href="<?= htmlspecialchars(dsc_invoicing_href($href), ENT_QUOTES, 'UTF-8') ?>"
+                   class="<?= $settingsTab === $key ? 'active' : '' ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></a>
+            <?php endforeach; ?>
+        </nav>
+<?php endif; ?>
         <main class="main-content">

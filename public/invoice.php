@@ -89,23 +89,11 @@ header('Link: <' . $canonical . '>; rel="canonical"');
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
-    <style>
-        .invoice-hero { margin-bottom: 1.5rem; }
-        .invoice-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
-        .pay-card { border: 1px solid #30363d; border-radius: 8px; padding: 1rem; background: #161b22; }
-        .pay-card.paid { border-color: #238636; }
-        .pay-card h3 { margin: 0 0 .5rem; font-size: 1rem; }
-        .amount { font-size: 1.5rem; font-weight: 600; margin: .25rem 0 .75rem; }
-        .due { color: #8b949e; font-size: .875rem; margin-bottom: .75rem; }
-        .status-pill { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
-        .status-pill.paid { background: #23863633; color: #3fb950; }
-        .status-pill.published { background: #1f6feb33; color: #58a6ff; }
-        .breakdown { margin-top: 2rem; }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=2', ENT_QUOTES, 'UTF-8') ?>">
 </head>
-<body>
-<main class="container" style="max-width: 52rem; margin: 2rem auto; padding: 0 1rem;">
+<body class="inv-app">
+<main class="invoice-page">
     <div class="invoice-hero">
         <p style="color:#8b949e;margin:0 0 .25rem;">Decision Science Corp</p>
         <h1 style="margin:0 0 .35rem;"><?= htmlspecialchars($company, ENT_QUOTES, 'UTF-8') ?></h1>

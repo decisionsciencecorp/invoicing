@@ -26,7 +26,6 @@ $keys = getAllApiKeys();
 
 $adminPageTitle = 'API keys';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">

@@ -209,37 +209,22 @@ $listPageUrl = static function (int $page) use ($invoicesBase): string {
 
 $adminPageTitle = 'Invoices';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Invoices',
+    'subtitle' => 'Hourly needs a Tasks accounting doc; flat/tier is Net 30 with optional doc.',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Invoices</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
-
-<p style="color:#8b949e;margin-top:0;">
-    <strong>Hourly:</strong> retainer for anchor month M plus overage from M−1 (Tasks accounting doc required).
-    <strong>Flat/tier:</strong> pick Tier 1 or Tier 2 at publish (Net 30); accounting doc optional.
-</p>
 
 <?php if ($flash !== ''): ?>
     <div class="message <?= $flashType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
-<nav class="inv-tabbar" aria-label="Invoices sections" style="display:flex;gap:0;margin:1rem 0 1.25rem;border-bottom:1px solid #30363d;">
-    <a href="<?= htmlspecialchars($publishTabUrl, ENT_QUOTES, 'UTF-8') ?>"
-       style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $tab === 'publish' ? '#58a6ff' : 'transparent' ?>;color:<?= $tab === 'publish' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $tab === 'publish' ? '600' : '400' ?>;">
-        Publish
-    </a>
-    <a href="<?= htmlspecialchars($listPageUrl(1), ENT_QUOTES, 'UTF-8') ?>"
-       style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $tab === 'list' ? '#58a6ff' : 'transparent' ?>;color:<?= $tab === 'list' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $tab === 'list' ? '600' : '400' ?>;">
+<nav class="tabbar" aria-label="Invoices sections">
+    <a href="<?= htmlspecialchars($publishTabUrl, ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'publish' ? 'active' : '' ?>">Publish</a>
+    <a href="<?= htmlspecialchars($listPageUrl(1), ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'list' ? 'active' : '' ?>">
         List<?= $listTotal > 0 ? ' (' . $listTotal . ')' : '' ?>
     </a>
-    <a href="<?= htmlspecialchars($unpaidTabUrl, ENT_QUOTES, 'UTF-8') ?>"
-       style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $tab === 'unpaid' ? '#58a6ff' : 'transparent' ?>;color:<?= $tab === 'unpaid' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $tab === 'unpaid' ? '600' : '400' ?>;">
+    <a href="<?= htmlspecialchars($unpaidTabUrl, ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'unpaid' ? 'active' : '' ?>">
         Unpaid / AR<?= $unpaidCount > 0 ? ' (' . $unpaidCount . ')' : '' ?>
     </a>
 </nav>

@@ -4,6 +4,9 @@ declare(strict_types=1);
 $navPath = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
 $isTimeNav = str_contains($navPath, '/admin/time-entries.php')
     || str_contains($navPath, '/admin/report-hours.php');
+$isInvoicesNav = str_contains($navPath, '/admin/invoices.php');
+$isCompaniesNav = str_contains($navPath, '/admin/companies.php')
+    || str_contains($navPath, '/admin/engagement');
 $isSettingsNav = str_contains($navPath, '/admin/api-keys.php')
     || str_contains($navPath, '/admin/users.php')
     || str_contains($navPath, '/admin/change-password.php')
@@ -11,71 +14,71 @@ $isSettingsNav = str_contains($navPath, '/admin/api-keys.php')
     || str_contains($navPath, '/admin/webhooks.php')
     || str_contains($navPath, '/admin/audit-log.php');
 $isHelpNav = str_contains($navPath, '/admin/help.php');
+$isDashNav = str_contains($navPath, '/admin/index.php');
+$username = (string) ($_SESSION['username'] ?? '');
+
+// Expose for header tabbars (same request).
+$GLOBALS['inv_is_time_nav'] = $isTimeNav;
+$GLOBALS['inv_is_settings_nav'] = $isSettingsNav;
+$GLOBALS['inv_nav_path'] = $navPath;
 ?>
-<nav class="stack inv-admin-nav" style="margin-bottom: 1.25rem; display:flex; flex-wrap:wrap; gap:.5rem; align-items:center;">
-    <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">Dashboard</a>
-    <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/companies.php'), ENT_QUOTES, 'UTF-8') ?>">Companies</a>
-    <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>"<?= $isTimeNav ? ' aria-current="page"' : '' ?>>Time</a>
-    <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/invoices.php'), ENT_QUOTES, 'UTF-8') ?>">Invoices</a>
-    <details class="inv-nav-settings" style="position:relative;">
-        <summary class="btn btn-outline" style="list-style:none;cursor:pointer;<?= $isSettingsNav ? 'border-color:#58a6ff;' : '' ?>">
-            Settings
-        </summary>
-        <div style="position:absolute;z-index:20;margin-top:.35rem;min-width:11rem;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:.35rem;display:flex;flex-direction:column;gap:.25rem;">
-            <a class="btn btn-outline" style="text-align:left;" href="<?= htmlspecialchars(dsc_invoicing_href('admin/change-password.php'), ENT_QUOTES, 'UTF-8') ?>">Password</a>
-            <a class="btn btn-outline" style="text-align:left;" href="<?= htmlspecialchars(dsc_invoicing_href('admin/users.php'), ENT_QUOTES, 'UTF-8') ?>">Users</a>
-            <a class="btn btn-outline" style="text-align:left;" href="<?= htmlspecialchars(dsc_invoicing_href('admin/api-keys.php'), ENT_QUOTES, 'UTF-8') ?>">API keys</a>
-            <a class="btn btn-outline" style="text-align:left;" href="<?= htmlspecialchars(dsc_invoicing_href('admin/config.php'), ENT_QUOTES, 'UTF-8') ?>">Square</a>
-            <a class="btn btn-outline" style="text-align:left;" href="<?= htmlspecialchars(dsc_invoicing_href('admin/webhooks.php'), ENT_QUOTES, 'UTF-8') ?>">Webhooks</a>
-            <a class="btn btn-outline" style="text-align:left;" href="<?= htmlspecialchars(dsc_invoicing_href('admin/audit-log.php'), ENT_QUOTES, 'UTF-8') ?>">Audit log</a>
+<nav class="navbar navbar-expand-lg navbar-dark admin-nav">
+    <div class="container-fluid px-3 px-lg-4">
+        <a class="navbar-brand d-inline-flex align-items-center gap-2" href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">
+            <i class="bi bi-receipt" aria-hidden="true"></i>
+            <span>Invoicing</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#invAdminNavbar"
+                aria-controls="invAdminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="invAdminNavbar">
+            <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center inv-nav-cluster">
+                <a class="btn btn-outline-light<?= $isDashNav ? ' active' : '' ?>"
+                   href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">
+                    <i class="bi bi-house-door me-1" aria-hidden="true"></i>Dashboard
+                </a>
+                <a class="btn btn-outline-light<?= $isCompaniesNav ? ' active' : '' ?>"
+                   href="<?= htmlspecialchars(dsc_invoicing_href('admin/companies.php'), ENT_QUOTES, 'UTF-8') ?>">
+                    <i class="bi bi-buildings me-1" aria-hidden="true"></i>Companies
+                </a>
+                <a class="btn btn-outline-light<?= $isTimeNav ? ' active' : '' ?>"
+                   href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>">
+                    <i class="bi bi-clock me-1" aria-hidden="true"></i>Time
+                </a>
+                <a class="btn btn-outline-light<?= $isInvoicesNav ? ' active' : '' ?>"
+                   href="<?= htmlspecialchars(dsc_invoicing_href('admin/invoices.php'), ENT_QUOTES, 'UTF-8') ?>">
+                    <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>Invoices
+                </a>
+                <div class="dropdown inv-nav-end-dropdown">
+                    <button class="btn btn-outline-light dropdown-toggle<?= $isSettingsNav ? ' active' : '' ?>"
+                            type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-gear me-1" aria-hidden="true"></i>Settings
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/change-password.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-key me-2" aria-hidden="true"></i>Password</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/users.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-people me-2" aria-hidden="true"></i>Users</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/api-keys.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-braces me-2" aria-hidden="true"></i>API keys</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/config.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-credit-card me-2" aria-hidden="true"></i>Square</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/webhooks.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-broadcast me-2" aria-hidden="true"></i>Webhooks</a></li>
+                        <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/audit-log.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Audit log</a></li>
+                    </ul>
+                </div>
+                <a class="btn btn-outline-light<?= $isHelpNav ? ' active' : '' ?>"
+                   href="<?= htmlspecialchars(dsc_invoicing_href('admin/help.php'), ENT_QUOTES, 'UTF-8') ?>">
+                    <i class="bi bi-question-circle me-1" aria-hidden="true"></i>Help
+                </a>
+                <hr class="d-lg-none border-secondary opacity-50 my-1 mx-0 w-100">
+                <?php if ($username !== ''): ?>
+                    <span class="navbar-text text-white-50 small px-lg-1"><?= htmlspecialchars($username, ENT_QUOTES, 'UTF-8') ?></span>
+                <?php endif; ?>
+                <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>" class="m-0">
+                    <?= csrfField() ?>
+                    <button type="submit" class="btn btn-outline-light" aria-label="Log out">
+                        <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Logout
+                    </button>
+                </form>
+            </div>
         </div>
-    </details>
-    <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/help.php'), ENT_QUOTES, 'UTF-8') ?>"<?= $isHelpNav ? ' aria-current="page"' : '' ?>>Help</a>
+    </div>
 </nav>
-<?php if ($isTimeNav): ?>
-    <?php
-    $timeTab = str_contains($navPath, 'report-hours.php') ? 'rollup' : 'entries';
-    ?>
-    <nav class="inv-tabbar" aria-label="Time sections" style="display:flex;gap:0;margin:-.5rem 0 1.25rem;border-bottom:1px solid #30363d;">
-        <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>"
-           style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $timeTab === 'entries' ? '#58a6ff' : 'transparent' ?>;color:<?= $timeTab === 'entries' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $timeTab === 'entries' ? '600' : '400' ?>;">
-            Time entries
-        </a>
-        <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/report-hours.php'), ENT_QUOTES, 'UTF-8') ?>"
-           style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $timeTab === 'rollup' ? '#58a6ff' : 'transparent' ?>;color:<?= $timeTab === 'rollup' ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $timeTab === 'rollup' ? '600' : '400' ?>;">
-            Hours rollup
-        </a>
-    </nav>
-<?php endif; ?>
-<?php if ($isSettingsNav): ?>
-    <?php
-    $settingsTab = 'square';
-    if (str_contains($navPath, 'change-password.php')) {
-        $settingsTab = 'password';
-    } elseif (str_contains($navPath, 'users.php')) {
-        $settingsTab = 'users';
-    } elseif (str_contains($navPath, 'api-keys.php')) {
-        $settingsTab = 'api-keys';
-    } elseif (str_contains($navPath, 'webhooks.php')) {
-        $settingsTab = 'webhooks';
-    } elseif (str_contains($navPath, 'audit-log.php')) {
-        $settingsTab = 'audit';
-    }
-    $settingsTabs = [
-        'password' => ['Password', 'admin/change-password.php'],
-        'users' => ['Users', 'admin/users.php'],
-        'api-keys' => ['API keys', 'admin/api-keys.php'],
-        'square' => ['Square', 'admin/config.php'],
-        'webhooks' => ['Webhooks', 'admin/webhooks.php'],
-        'audit' => ['Audit log', 'admin/audit-log.php'],
-    ];
-    ?>
-    <nav class="inv-tabbar" aria-label="Settings sections" style="display:flex;gap:0;flex-wrap:wrap;margin:-.5rem 0 1.25rem;border-bottom:1px solid #30363d;">
-        <?php foreach ($settingsTabs as $key => [$label, $href]): ?>
-            <a href="<?= htmlspecialchars(dsc_invoicing_href($href), ENT_QUOTES, 'UTF-8') ?>"
-               style="padding:.55rem 1rem;text-decoration:none;border-bottom:2px solid <?= $settingsTab === $key ? '#58a6ff' : 'transparent' ?>;color:<?= $settingsTab === $key ? '#e6edf3' : '#8b949e' ?>;font-weight:<?= $settingsTab === $key ? '600' : '400' ?>;">
-                <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
-            </a>
-        <?php endforeach; ?>
-    </nav>
-<?php endif; ?>

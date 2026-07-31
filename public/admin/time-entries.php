@@ -80,7 +80,6 @@ if ($err !== '' && ($_POST['form'] ?? '') === 'add' && isset($_POST['engagement_
 
 $adminPageTitle = 'Time entries';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">

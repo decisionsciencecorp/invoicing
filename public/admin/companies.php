@@ -30,7 +30,6 @@ while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
 
 $adminPageTitle = 'Companies';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">

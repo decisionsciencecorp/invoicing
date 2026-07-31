@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/square.php';
+require_once __DIR__ . '/../includes/billing.php';
 requireAuth();
 
 try {
@@ -14,42 +15,58 @@ try {
 
 $sqEnv = dsc_invoicing_square_config()['environment'] ?? 'sandbox';
 $squareOk = square_is_configured();
+$db = getDbConnection();
+$companyCount = (int) $db->querySingle('SELECT COUNT(*) FROM companies');
+$activeEng = (int) $db->querySingle("SELECT COUNT(*) FROM engagements WHERE status = 'active'");
+$unpaidCount = (int) $db->querySingle(
+    "SELECT COUNT(*) FROM outbound_invoices WHERE LOWER(COALESCE(payment_status, '')) NOT IN ('paid', 'canceled')"
+);
+$outboundCount = (int) $db->querySingle('SELECT COUNT(*) FROM outbound_invoices');
 
 $adminPageTitle = 'Dashboard';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Dashboard',
+    'subtitle' => 'Billing health at a glance',
+    'actions_html' => '<a class="btn btn-outline" href="' . htmlspecialchars(dsc_invoicing_href('admin/invoices.php'), ENT_QUOTES, 'UTF-8') . '"><i class="bi bi-plus-lg me-1"></i>Invoices</a>',
+]);
 ?>
 
-<div class="nav-row">
-    <h1>Dashboard</h1>
-    <div class="stack">
-        <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/companies.php'), ENT_QUOTES, 'UTF-8') ?>">Companies</a>
-        <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>">Time</a>
-        <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/report-hours.php'), ENT_QUOTES, 'UTF-8') ?>">Rollup</a>
-        <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/config.php'), ENT_QUOTES, 'UTF-8') ?>">Square config</a>
-        <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-            <?= csrfField() ?>
-            <button type="submit" class="btn">Logout</button>
-        </form>
+<div class="inv-kpi-row">
+    <div class="inv-kpi">
+        <div class="inv-kpi__label">Companies</div>
+        <div class="inv-kpi__value"><?= $companyCount ?></div>
+    </div>
+    <div class="inv-kpi">
+        <div class="inv-kpi__label">Active engagements</div>
+        <div class="inv-kpi__value"><?= $activeEng ?></div>
+    </div>
+    <div class="inv-kpi">
+        <div class="inv-kpi__label">Outbound invoices</div>
+        <div class="inv-kpi__value"><?= $outboundCount ?></div>
+    </div>
+    <div class="inv-kpi">
+        <div class="inv-kpi__label">Unpaid / AR</div>
+        <div class="inv-kpi__value"><?= $unpaidCount ?></div>
     </div>
 </div>
 
-<div class="info-box">
-    <p><strong>Logged in:</strong> <?= htmlspecialchars((string) ($_SESSION['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-    <p><strong>Database:</strong>
+<div class="surface surface-pad">
+    <p class="mb-2"><strong>Signed in as</strong> <?= htmlspecialchars((string) ($_SESSION['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+    <p class="mb-2"><strong>Database:</strong>
         <?php if ($dbHealth['ok']): ?>
             <span class="success"><?= htmlspecialchars($dbHealth['message'], ENT_QUOTES, 'UTF-8') ?></span>
         <?php else: ?>
             <span class="error"><?= htmlspecialchars($dbHealth['message'], ENT_QUOTES, 'UTF-8') ?></span>
         <?php endif; ?>
     </p>
-    <p><strong>Square:</strong>
-        <?= $squareOk
-            ? 'token configured · environment <code>' . htmlspecialchars($sqEnv, ENT_QUOTES, 'UTF-8') . '</code>'
-            : '<span class="error">No access token — add in Config</span>'
-        ?>
+    <p class="mb-0"><strong>Square:</strong>
+        <?php if ($squareOk): ?>
+            configured · <code><?= htmlspecialchars($sqEnv, ENT_QUOTES, 'UTF-8') ?></code>
+        <?php else: ?>
+            <span class="error">No access token — add under Settings → Square</span>
+        <?php endif; ?>
     </p>
-    <p style="margin-top:1rem;color:#8b949e;font-size:.875rem;">PRD milestones: Companies / engagements / time (P1) and combined invoices (P2) follow this bootstrap.</p>
 </div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

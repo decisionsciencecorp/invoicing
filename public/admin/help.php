@@ -21,7 +21,6 @@ if (!isset($sections[$section])) {
 
 $adminPageTitle = 'Help';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">
@@ -32,9 +31,9 @@ require_once __DIR__ . '/includes/nav.php';
     </form>
 </div>
 
-<div class="inv-help-layout" style="display:grid;grid-template-columns:minmax(10rem,14rem) 1fr;gap:1.25rem;align-items:start;">
-    <nav class="info-box" aria-label="Help topics" style="padding:.75rem;">
-        <ul style="list-style:none;margin:0;padding:0;">
+<div class="inv-help-layout">
+    <nav class="surface surface-pad-sm" aria-label="Help topics">
+        <ul class="inv-help-nav">
             <?php foreach ($sections as $key => $label): ?>
                 <li style="margin:0 0 .35rem;">
                     <a href="?section=<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>"

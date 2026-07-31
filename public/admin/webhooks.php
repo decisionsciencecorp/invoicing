@@ -13,7 +13,6 @@ $endpoint = dsc_invoicing_public_base_url() . dsc_invoicing_href('api/square-web
 
 $adminPageTitle = 'Webhooks';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">
