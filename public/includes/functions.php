@@ -91,6 +91,56 @@ function dsc_invoicing_href(string $path): string {
     return $base . $path;
 }
 
+/**
+ * Safe post-login redirect target (same-app /admin/*.php only).
+ */
+function dsc_invoicing_safe_admin_return(?string $raw): string {
+    $default = dsc_invoicing_href('admin/index.php');
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return $default;
+    }
+    // Absolute URLs are never accepted as return targets (open-redirect brake).
+    if (preg_match('#^https?://#i', $raw) || str_starts_with($raw, '//')) {
+        return $default;
+    }
+    $pathOnly = $raw;
+    $query = '';
+    if (str_contains($raw, '?')) {
+        [$pathOnly, $query] = explode('?', $raw, 2);
+    }
+    $pathOnly = '/' . ltrim(str_replace('\\', '/', $pathOnly), '/');
+    $base = dsc_invoicing_web_base_path();
+    if ($base !== '' && str_starts_with($pathOnly, $base . '/')) {
+        $pathOnly = substr($pathOnly, strlen($base));
+        if ($pathOnly === '' || $pathOnly[0] !== '/') {
+            $pathOnly = '/' . ltrim($pathOnly, '/');
+        }
+    }
+    if (!preg_match('#^/admin/[a-zA-Z0-9_-]+\.php$#', $pathOnly)) {
+        return $default;
+    }
+    if (str_ends_with($pathOnly, '/login.php') || str_ends_with($pathOnly, '/logout.php')) {
+        return $default;
+    }
+    if ($query !== '' && !preg_match('#^[a-zA-Z0-9_=&%./+-]+$#', $query)) {
+        $query = '';
+    }
+    $rel = ltrim($pathOnly, '/') . ($query !== '' ? '?' . $query : '');
+
+    return dsc_invoicing_href($rel);
+}
+
+/** Current request path+query for login ?return= (empty when not useful). */
+function dsc_invoicing_current_request_return(): string {
+    $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+    if ($uri === '' || str_contains($uri, 'login.php')) {
+        return '';
+    }
+
+    return $uri;
+}
+
 function app_log(string $level, string $message): void {
     if (!defined('LOG_PATH')) {
         return;

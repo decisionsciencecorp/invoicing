@@ -1,0 +1,713 @@
+/* DSC Invoicing — design layer (Bootstrap 5.3 + BI)
+ * Tokens mirror Tasks --st-* / CRM --crm-* under --inv-*.
+ * Version via ?v= on the link in admin/includes/header.php
+ */
+
+:root {
+  --inv-bg-app: #0f1419;
+  --inv-bg-surface: #161b22;
+  --inv-bg-soft: #21262d;
+  --inv-bg-elevated: #1c2128;
+  --inv-bg-input: #0d1117;
+  --inv-border-subtle: #30363d;
+  --inv-border-strong: #484f58;
+  --inv-text-primary: #e8eaed;
+  --inv-text-secondary: #c9d1d9;
+  --inv-text-muted: #8b949e;
+  --inv-accent: #58a6ff;
+  --inv-accent-soft: rgba(88, 166, 255, 0.14);
+  --inv-accent-hover: #79b8ff;
+  --inv-link: #7cb3ff;
+  --inv-ok: #3fb950;
+  --inv-ok-soft: #033a16;
+  --inv-err: #f85149;
+  --inv-err-soft: #3d1515;
+  --inv-warn: #d29922;
+  --inv-warn-soft: #3d2e00;
+  --inv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --inv-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --inv-radius: 10px;
+  --inv-radius-sm: 6px;
+  --inv-gap-section: 1.5rem;
+  --inv-gap-stack: 0.85rem;
+  --inv-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --inv-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --inv-status-published: #8b949e;
+  --inv-status-published-soft: #21262d;
+  --inv-status-partial: #d29922;
+  --inv-status-partial-soft: #3d2e00;
+  --inv-status-paid: #3fb950;
+  --inv-status-paid-soft: #033a16;
+  --inv-status-canceled: #f85149;
+  --inv-status-canceled-soft: #3d1515;
+
+  /* Align Bootstrap 5.3 tokens with invoicing shell (skins override --inv-*) */
+  --bs-body-bg: var(--inv-bg-app);
+  --bs-body-color: var(--inv-text-primary);
+  --bs-border-color: var(--inv-border-subtle);
+  --bs-secondary-color: var(--inv-text-muted);
+  --bs-tertiary-bg: var(--inv-bg-soft);
+  --bs-emphasis-color: var(--inv-text-primary);
+  --bs-link-color: var(--inv-link);
+  --bs-link-hover-color: var(--inv-accent-hover);
+  --bs-form-control-bg: var(--inv-bg-input);
+  --bs-body-font-family: var(--inv-font);
+  --bs-dropdown-bg: var(--inv-bg-elevated);
+  --bs-dropdown-color: var(--inv-text-primary);
+  --bs-dropdown-link-color: var(--inv-text-primary);
+  --bs-dropdown-link-hover-bg: var(--inv-accent-soft);
+  --bs-dropdown-link-hover-color: var(--inv-text-primary);
+  --bs-dropdown-link-active-bg: var(--inv-accent-soft);
+  --bs-dropdown-link-active-color: var(--inv-text-primary);
+  --bs-dropdown-border-color: var(--inv-border-subtle);
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* Follow skin theme — forcing dark here made native buttons/selects black on Hey/Ledger. */
+html[data-bs-theme="light"] { color-scheme: light; }
+html[data-bs-theme="dark"],
+html:not([data-bs-theme]) { color-scheme: dark; }
+
+body.inv-app {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--inv-font);
+  line-height: 1.5;
+  color: var(--inv-text-primary);
+  background:
+    radial-gradient(1100px 520px at 8% -12%, rgba(88, 166, 255, 0.09), transparent 55%),
+    var(--inv-bg-app);
+}
+
+.inv-app a { color: var(--inv-link); }
+.inv-app a:hover { color: var(--inv-accent-hover); }
+.inv-app a.btn { text-decoration: none; }
+
+/* ---------- Shell ---------- */
+.inv-shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2.5rem;
+}
+@media (min-width: 992px) {
+  .inv-shell { padding: 1.5rem 1.25rem 3rem; }
+}
+
+/* ---------- Admin nav ---------- */
+.admin-nav {
+  --inv-nav-fs: 0.875rem;
+  box-shadow: var(--inv-shadow-sm);
+  min-height: 2.75rem;
+  position: relative;
+  overflow: visible;
+  background: var(--inv-bg-elevated) !important;
+  border-bottom: 1px solid var(--inv-border-subtle);
+}
+.admin-nav .navbar-collapse,
+.admin-nav .container-fluid { overflow: visible; }
+.admin-nav .navbar-brand {
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.admin-nav .inv-nav-cluster {
+  gap: 0.4rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+.admin-nav .btn-outline-light,
+.admin-nav .btn-outline-dark {
+  font-weight: 500;
+  font-size: var(--inv-nav-fs);
+  line-height: 1.25;
+  padding: 0.32rem 0.7rem;
+  white-space: nowrap;
+}
+.admin-nav .btn-outline-light {
+  --bs-btn-color: #fff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.28);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.12);
+  --bs-btn-hover-border-color: rgba(255, 255, 255, 0.45);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: rgba(255, 255, 255, 0.18);
+  --bs-btn-active-border-color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.admin-nav .btn-outline-light:hover,
+.admin-nav .btn-outline-light:focus,
+.admin-nav .btn-outline-light.active,
+.admin-nav .btn-outline-light:active {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+.admin-nav .btn-outline-dark {
+  --bs-btn-color: #111;
+  --bs-btn-border-color: rgba(0, 0, 0, 0.35);
+  --bs-btn-hover-color: #000;
+  --bs-btn-hover-bg: rgba(0, 0, 0, 0.06);
+  --bs-btn-hover-border-color: rgba(0, 0, 0, 0.55);
+  --bs-btn-active-color: #000;
+  --bs-btn-active-bg: rgba(0, 0, 0, 0.1);
+  --bs-btn-active-border-color: rgba(0, 0, 0, 0.65);
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.35);
+  color: #111;
+}
+.admin-nav .btn-outline-dark:hover,
+.admin-nav .btn-outline-dark:focus,
+.admin-nav .btn-outline-dark.active,
+.admin-nav .btn-outline-dark:active {
+  background-color: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.55);
+  color: #000;
+}
+
+.admin-nav .dropdown-menu,
+.inv-app .dropdown-menu {
+  z-index: 1080;
+  --bs-dropdown-bg: var(--inv-bg-elevated);
+  --bs-dropdown-color: var(--inv-text-primary);
+  --bs-dropdown-link-color: var(--inv-text-primary);
+  --bs-dropdown-link-hover-bg: var(--inv-accent-soft);
+  --bs-dropdown-link-hover-color: var(--inv-text-primary);
+  --bs-dropdown-border-color: var(--inv-border-subtle);
+  background: var(--inv-bg-elevated) !important;
+  color: var(--inv-text-primary) !important;
+  border: 1px solid var(--inv-border-subtle);
+}
+.admin-nav .dropdown-item,
+.inv-app .dropdown-item {
+  color: var(--inv-text-primary) !important;
+  background-color: transparent;
+}
+.admin-nav .dropdown-item:hover,
+.admin-nav .dropdown-item:focus,
+.inv-app .dropdown-item:hover,
+.inv-app .dropdown-item:focus {
+  background: var(--inv-accent-soft) !important;
+  color: var(--inv-text-primary) !important;
+}
+.admin-nav .dropdown-divider,
+.inv-app .dropdown-divider { border-color: var(--inv-border-subtle); }
+@media (min-width: 992px) {
+  .admin-nav .inv-nav-cluster {
+    gap: 0.35rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    flex-wrap: nowrap !important;
+    overflow: visible;
+  }
+  .admin-nav .inv-nav-cluster > .btn,
+  .admin-nav .inv-nav-cluster > .dropdown {
+    flex: 0 0 auto;
+    width: auto !important;
+    max-width: none;
+  }
+  /* Anchor under the Settings toggle (not the navbar's right edge). */
+  .admin-nav .inv-nav-end-dropdown {
+    position: relative;
+  }
+  .admin-nav .inv-nav-end-dropdown .dropdown-menu {
+    min-width: 12.5rem;
+  }
+}
+
+/* ---------- Page header ---------- */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.2rem;
+}
+.page-header__title h1 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.page-header__title .subtitle {
+  color: var(--inv-text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+}
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+/* ---------- Surfaces ---------- */
+.surface,
+.info-box {
+  background: var(--inv-bg-surface);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius);
+  box-shadow: var(--inv-shadow-sm);
+}
+.surface-pad,
+.info-box { padding: 1.05rem 1.15rem; }
+.surface-pad-sm { padding: 0.85rem 1rem; }
+.surface + .surface,
+.info-box + .info-box { margin-top: var(--inv-gap-stack); }
+
+/* ---------- Tabbar ---------- */
+.tabbar,
+.inv-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0 0 1.25rem;
+  border-bottom: 1px solid var(--inv-border-subtle);
+}
+.tabbar a,
+.inv-tabbar a {
+  padding: 0.55rem 1rem;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  color: var(--inv-text-muted);
+  font-weight: 400;
+  margin-bottom: -1px;
+}
+.tabbar a:hover,
+.inv-tabbar a:hover { color: var(--inv-text-primary); }
+.tabbar a.active,
+.inv-tabbar a.active {
+  border-bottom-color: var(--inv-accent);
+  color: var(--inv-text-primary);
+  font-weight: 600;
+}
+
+/* Nested section tabs under a Settings parent page */
+.tabbar.tabbar--sub {
+  margin: -0.35rem 0 1.35rem;
+  border-bottom-color: color-mix(in srgb, var(--inv-border-subtle) 70%, transparent);
+}
+.tabbar.tabbar--sub a {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+}
+.tabbar.tabbar--sub a.active {
+  border-bottom-color: color-mix(in srgb, var(--inv-accent) 85%, var(--inv-text-muted));
+  font-weight: 600;
+}
+
+/* ---------- Status pills ---------- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  line-height: 1.3;
+}
+.status-pill--published,
+.status-pill--default {
+  color: var(--inv-status-published);
+  background: var(--inv-status-published-soft);
+  border-color: rgba(139, 148, 158, 0.25);
+}
+.status-pill--partial {
+  color: var(--inv-status-partial);
+  background: var(--inv-status-partial-soft);
+  border-color: rgba(210, 153, 34, 0.3);
+}
+.status-pill--paid {
+  color: var(--inv-status-paid);
+  background: var(--inv-status-paid-soft);
+  border-color: rgba(63, 185, 80, 0.3);
+}
+.status-pill--canceled,
+.status-pill--failed {
+  color: var(--inv-status-canceled);
+  background: var(--inv-status-canceled-soft);
+  border-color: rgba(248, 81, 73, 0.3);
+}
+
+/* ---------- Filter bar ---------- */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--inv-bg-soft);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius-sm);
+}
+.filter-bar label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--inv-text-muted);
+}
+.filter-bar .form-control,
+.filter-bar .form-select {
+  min-width: 8rem;
+}
+
+/* ---------- Forms (compat with existing markup) ---------- */
+.inv-app label {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--inv-text-muted);
+}
+.inv-app input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]),
+.inv-app select,
+.inv-app textarea {
+  width: 100%;
+  max-width: 32rem;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--inv-radius-sm);
+  border: 1px solid var(--inv-border-strong);
+  background: var(--inv-bg-input);
+  color: var(--inv-text-primary);
+}
+.inv-app textarea { min-height: 5rem; }
+.inv-app .form-control,
+.inv-app .form-select {
+  max-width: 32rem;
+  background-color: var(--inv-bg-input) !important;
+  border-color: var(--inv-border-strong) !important;
+  color: var(--inv-text-primary) !important;
+}
+.inv-app .form-control:focus,
+.inv-app .form-select:focus {
+  background-color: var(--inv-bg-input) !important;
+  border-color: var(--inv-accent) !important;
+  color: var(--inv-text-primary) !important;
+  box-shadow: 0 0 0 0.2rem var(--inv-accent-soft);
+}
+.inv-app .form-control::placeholder { color: var(--inv-text-muted); opacity: 1; }
+.inv-app .form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b949e' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* ---------- Buttons (legacy .btn + Bootstrap) ----------
+ * Do not restyle Bootstrap outline/primary variants via bare `.btn` —
+ * that fought btn-outline-light / btn-outline-dark in the admin nav. */
+.inv-app .btn-outline {
+  display: inline-block;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--inv-radius-sm);
+  border: 1px solid var(--inv-border-subtle);
+  background: var(--inv-bg-surface);
+  color: var(--inv-text-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  text-decoration: none;
+  line-height: 1.25;
+}
+.inv-app .btn-outline:hover {
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-primary);
+}
+.inv-app .btn:not(.btn-outline-light):not(.btn-outline-dark):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle) {
+  background: var(--inv-bg-surface);
+  border: 1px solid var(--inv-border-subtle);
+  color: var(--inv-text-primary);
+}
+.inv-app .btn:not(.btn-outline-light):not(.btn-outline-dark):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle):hover {
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-primary);
+}
+.inv-app .btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--inv-accent);
+  --bs-btn-border-color: var(--inv-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--inv-accent-hover);
+  --bs-btn-hover-border-color: var(--inv-accent-hover);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--inv-accent-hover);
+  --bs-btn-active-border-color: var(--inv-accent-hover);
+  background: var(--inv-accent) !important;
+  border-color: var(--inv-accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+.inv-app .btn-primary:hover {
+  background: var(--inv-accent-hover) !important;
+  border-color: var(--inv-accent-hover) !important;
+  color: #fff !important;
+}
+
+.nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.error { color: var(--inv-err); }
+.success { color: var(--inv-ok); }
+.message {
+  padding: 0.75rem;
+  border-radius: var(--inv-radius-sm);
+  margin-bottom: 1rem;
+}
+.message.ok {
+  background: var(--inv-ok-soft);
+  border: 1px solid #238636;
+}
+.message.err {
+  background: var(--inv-err-soft);
+  border: 1px solid #da3633;
+}
+
+.inv-app code {
+  font-family: var(--inv-mono);
+  font-size: 0.85rem;
+  color: var(--inv-text-secondary);
+  background: var(--inv-bg-input);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+
+/* ---------- Tables ---------- */
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.inv-table th,
+.inv-table td {
+  padding: 0.4rem 0.35rem;
+  text-align: left;
+  border-bottom: 1px solid var(--inv-border-subtle);
+  vertical-align: top;
+}
+.inv-table th {
+  color: var(--inv-text-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+@media (max-width: 767.98px) {
+  .inv-table-cards thead { display: none; }
+  .inv-table-cards tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: var(--inv-bg-surface);
+    border: 1px solid var(--inv-border-subtle);
+    border-radius: var(--inv-radius-sm);
+  }
+  .inv-table-cards td {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: 0;
+    padding: 0.25rem 0;
+  }
+  .inv-table-cards td::before {
+    content: attr(data-label);
+    color: var(--inv-text-muted);
+    font-weight: 600;
+    flex: 0 0 40%;
+  }
+}
+
+/* ---------- Login ---------- */
+.inv-login-wrap {
+  min-height: calc(100vh - 2rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+.inv-login-card {
+  width: 100%;
+  max-width: 24rem;
+  padding: 1.5rem 1.35rem;
+  background: var(--inv-bg-surface);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius);
+  box-shadow: var(--inv-shadow-md);
+}
+.inv-login-card h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+.inv-login-card .subtitle {
+  color: var(--inv-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+.inv-login-card input,
+.inv-login-card .form-control,
+.inv-login-card .btn {
+  max-width: none;
+  width: 100%;
+}
+
+/* ---------- Help ---------- */
+.inv-help-layout {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 767.98px) {
+  .inv-help-layout { grid-template-columns: 1fr; }
+}
+.inv-help-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.inv-help-nav a {
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--inv-radius-sm);
+  text-decoration: none;
+  color: var(--inv-text-muted);
+}
+.inv-help-nav a.active,
+.inv-help-nav a:hover {
+  color: var(--inv-text-primary);
+  background: var(--inv-accent-soft);
+}
+
+/* ---------- KPI strip ---------- */
+.inv-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.inv-kpi {
+  padding: 0.9rem 1rem;
+  background: var(--inv-bg-surface);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius);
+}
+.inv-kpi__label {
+  font-size: 0.75rem;
+  color: var(--inv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.inv-kpi__value {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+/* ---------- Markdown (client invoice) ---------- */
+.markdown-body {
+  color: var(--inv-text-primary);
+  line-height: 1.55;
+  word-wrap: break-word;
+}
+.markdown-body p { margin: 0 0 0.6rem 0; }
+.markdown-body p:last-child { margin-bottom: 0; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3,
+.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+  margin: 1em 0 0.4em 0;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #f0f3f6;
+}
+.markdown-body h1 { font-size: 1.3rem; }
+.markdown-body h2 {
+  font-size: 1.15rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--inv-border-subtle);
+  margin-top: 1.75rem;
+}
+.markdown-body h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+.markdown-body ul, .markdown-body ol { margin: 0 0 0.6rem 1.4rem; padding: 0; }
+.markdown-body code {
+  font-family: var(--inv-mono);
+  background: var(--inv-bg-input);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  font-size: 0.85em;
+}
+.markdown-body pre {
+  margin: 0.6rem 0;
+  padding: 0.75rem 0.9rem;
+  background: var(--inv-bg-input);
+  border-radius: var(--inv-radius-sm);
+  border: 1px solid var(--inv-border-subtle);
+  overflow-x: auto;
+  font-size: 0.82rem;
+}
+.markdown-body pre code { background: transparent; border: 0; padding: 0; }
+.markdown-body a { color: var(--inv-accent); }
+.markdown-body table { border-collapse: collapse; margin: 0.6rem 0; width: 100%; font-size: 0.88rem; }
+.markdown-body th, .markdown-body td {
+  border: 1px solid var(--inv-border-subtle);
+  padding: 0.35rem 0.55rem;
+}
+.markdown-body th { background: var(--inv-bg-input); }
+
+/* Toast host */
+#inv-toast-host {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1090;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+
+/* ---------- Public client invoice ---------- */
+.invoice-page {
+  max-width: 52rem;
+  margin: 2rem auto;
+  padding: 0 1rem 2.5rem;
+}
+.invoice-hero { margin-bottom: 1.5rem; }
+.invoice-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+.pay-card {
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius);
+  padding: 1rem;
+  background: var(--inv-bg-surface);
+}
+.pay-card.paid { border-color: #238636; }
+.pay-card h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.pay-card .amount {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.25rem 0 0.75rem;
+}
+.pay-card .due {
+  color: var(--inv-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+.invoice-page .breakdown { margin-top: 2rem; }

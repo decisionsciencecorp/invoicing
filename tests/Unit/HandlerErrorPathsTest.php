@@ -64,4 +64,54 @@ final class HandlerErrorPathsTest extends TestCase
         $this->assertTrue(verifyCsrfToken('goodtoken'));
         unset($_SERVER['REQUEST_METHOD'], $_POST['csrf_token']);
     }
+
+    public function testNewOpsApiHandlers(): void
+    {
+        $k = createApiKey('opsapi');
+        $ip = '127.0.0.1';
+        $this->assertSame(401, runInvoicingApiListUnpaidAging(null, $ip)['code']);
+        $this->assertTrue(runInvoicingApiListUnpaidAging($k, $ip)['success']);
+        $this->assertTrue(runInvoicingApiListAuditLog($k, $ip, 10, 0)['success']);
+        $this->assertTrue(runInvoicingApiListConfig($k, $ip)['success']);
+        $this->assertTrue(runInvoicingApiListApiKeysMeta($k, $ip)['success']);
+        $this->assertTrue(runInvoicingApiListAdminUsers($k, $ip)['success']);
+
+        $this->assertSame(400, runInvoicingApiRefreshOutboundInvoice($k, $ip, [])['code']);
+        $this->assertSame(400, runInvoicingApiAttachTasksDocument($k, $ip, [])['code']);
+        $this->assertSame(400, runInvoicingApiCancelOutboundInvoice($k, $ip, [])['code']);
+
+        $db = getDbConnection();
+        $seed = invoicing_test_seed_company_engagement($db, 0, 0, 'flat_tier', 5000, 9000);
+        $pub = dsc_billing_publish_combined_invoice($db, $seed['engagement_id'], '2026-03', null, 'tier1');
+        $this->assertTrue($pub['ok'], $pub['error'] ?? '');
+        $oid = (int) $pub['outbound_id'];
+
+        $ref = runInvoicingApiRefreshOutboundInvoice($k, $ip, ['outbound_id' => $oid]);
+        $this->assertTrue($ref['success'], $ref['error'] ?? '');
+
+        $att = runInvoicingApiAttachTasksDocument($k, $ip, ['outbound_id' => $oid, 'tasks_document_id' => 77]);
+        $this->assertTrue($att['success'], $att['error'] ?? '');
+
+        unset($GLOBALS['_dsc_square_mock_canceled'], $GLOBALS['_dsc_square_mock_paid']);
+        $can = runInvoicingApiCancelOutboundInvoice($k, $ip, ['outbound_id' => $oid]);
+        $this->assertTrue($can['success'], $can['error'] ?? '');
+
+        $upEng = runInvoicingApiUpdateEngagement([
+            'engagement_id' => $seed['engagement_id'],
+            'tasks_project_id' => 42,
+            'tasks_directory_path' => 'client-facing',
+            'name' => 'Renamed eng',
+        ], $k, $ip);
+        $this->assertTrue($upEng['success'], $upEng['error'] ?? '');
+
+        $clearProj = runInvoicingApiUpdateEngagement([
+            'engagement_id' => $seed['engagement_id'],
+            'tasks_project_id' => 0,
+        ], $k, $ip);
+        $this->assertTrue($clearProj['success'], $clearProj['error'] ?? '');
+
+        $this->assertSame(401, runInvoicingApiListConfig(null, $ip)['code']);
+        $this->assertSame(401, runInvoicingApiListAdminUsers(null, $ip)['code']);
+        $this->assertSame(400, runInvoicingApiRefreshOutboundInvoice($k, $ip, ['outbound_id' => 999999])['code']);
+    }
 }

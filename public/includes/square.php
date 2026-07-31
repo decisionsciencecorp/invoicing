@@ -184,19 +184,41 @@ function dsc_invoicing_square_webhook_find_invoice_id(array $payload): ?string {
 /**
  * @return array{code:int, payload:array<string,mixed>}
  */
+/**
+ * Invoice events that should refresh local outbound payment/lifecycle status.
+ *
+ * @return list<string>
+ */
+function dsc_invoicing_square_webhook_refresh_event_types(): array {
+    return [
+        'invoice.payment_made',
+        'invoice.updated',
+        'invoice.scheduled',
+        'invoice.canceled',
+        'invoice.refunded',
+        'invoice.payment_made.v2',
+    ];
+}
+
 function dsc_invoicing_square_webhook_run(SQLite3 $db, string $rawBody, string $signatureHeader): array {
+    if (!function_exists('dsc_invoicing_audit_log')) {
+        require_once __DIR__ . '/audit.php';
+    }
     if (!dsc_invoicing_square_webhook_verify_signature($rawBody, $signatureHeader)) {
         app_log('warning', 'Square webhook signature verify failed.');
+        dsc_invoicing_audit_log('square.webhook.bad_signature', 'webhook', null, null, null, 'warning');
         return ['code' => 401, 'payload' => ['success' => false, 'error' => 'Invalid signature.']];
     }
     $payload = json_decode($rawBody, true);
     if (!is_array($payload)) {
+        dsc_invoicing_audit_log('square.webhook.bad_json', 'webhook', null, null, null, 'warning');
         return ['code' => 400, 'payload' => ['success' => false, 'error' => 'Invalid JSON.']];
     }
     $type = isset($payload['type']) ? (string) $payload['type'] : '';
-    if ($type === 'invoice.payment_made') {
+    if (in_array($type, dsc_invoicing_square_webhook_refresh_event_types(), true)) {
         $invId = dsc_invoicing_square_webhook_find_invoice_id($payload);
         if ($invId === null) {
+            dsc_invoicing_audit_log('square.webhook.ignored', 'webhook', 'event', $type, ['reason' => 'no_invoice_id']);
             return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'no_invoice_id']];
         }
         $sel = $db->prepare(
@@ -207,20 +229,41 @@ function dsc_invoicing_square_webhook_run(SQLite3 $db, string $rawBody, string $
         $r = $sel->execute();
         $row = $r ? $r->fetchArray(SQLITE3_ASSOC) : false;
         if (!$row || empty($row['id'])) {
-            app_log('info', 'Square invoice.payment_made for unknown invoice ' . $invId);
+            app_log('info', 'Square ' . $type . ' for unknown invoice ' . $invId);
+            dsc_invoicing_audit_log(
+                'square.webhook.unknown_invoice',
+                'webhook',
+                'square_invoice',
+                $invId,
+                ['type' => $type]
+            );
             return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'unknown_invoice', 'invoice_id' => $invId]];
         }
         $refresh = dsc_billing_refresh_outbound_payment_status($db, (int) $row['id']);
-        app_log('info', 'Square invoice.payment_made reconciled for ' . $invId . ' outbound #' . (int) $row['id']);
+        app_log('info', 'Square ' . $type . ' reconciled for ' . $invId . ' outbound #' . (int) $row['id']);
+        dsc_invoicing_audit_log(
+            'square.webhook.refresh',
+            'webhook',
+            'outbound_invoice',
+            (string) (int) $row['id'],
+            [
+                'type' => $type,
+                'square_invoice_id' => $invId,
+                'payment_status' => $refresh['payment_status'] ?? null,
+                'ok' => !empty($refresh['ok']),
+            ]
+        );
         return [
             'code' => 200,
             'payload' => [
                 'success' => true,
+                'type' => $type,
                 'invoice_id' => $invId,
                 'outbound_id' => (int) $row['id'],
-                'payment_status' => $refresh['payment_status'] ?? 'paid',
+                'payment_status' => $refresh['payment_status'] ?? null,
             ],
         ];
     }
+    dsc_invoicing_audit_log('square.webhook.ignored', 'webhook', 'event', $type, ['reason' => 'event_type']);
     return ['code' => 200, 'payload' => ['success' => true, 'ignored' => 'event_type', 'type' => $type]];
 }

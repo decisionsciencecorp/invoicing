@@ -5,7 +5,11 @@
 
 if (getenv('INVOICING_TEST') && getenv('DB_PATH')) {
     define('DB_PATH', getenv('DB_PATH'));
+} elseif (getenv('INVOICING_DB_PATH')) {
+    // Deploy CLI: point migrate at the vhost DB (not the empty repo db/ stub).
+    define('DB_PATH', (string) getenv('INVOICING_DB_PATH'));
 } else {
+    // Web root layout: …/html/includes → …/db/invoicing.db (DB_PARENT/db).
     define('DB_PATH', __DIR__ . '/../../db/invoicing.db');
 }
 

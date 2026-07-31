@@ -121,4 +121,51 @@ final class CoveragePushTest extends TestCase
         $this->assertFalse($ovFail['ok']);
         invoicing_test_install_mocks();
     }
+
+    public function testApiUnauthorizedSweepAndSafeReturn(): void
+    {
+        $bad = null;
+        $ip = '203.0.113.9';
+        $calls = [
+            runInvoicingApiGetCompany($bad, $ip, 1),
+            runInvoicingApiCreateCompany(['name' => 'x'], $bad, $ip),
+            runInvoicingApiUpdateCompany(['id' => 1, 'name' => 'x'], $bad, $ip),
+            runInvoicingApiDeleteCompany(['id' => 1], $bad, $ip),
+            runInvoicingApiGetEngagement($bad, $ip, 1),
+            runInvoicingApiCreateEngagement(['company_id' => 1, 'name' => 'e'], $bad, $ip),
+            runInvoicingApiUpdateEngagement(['id' => 1, 'name' => 'e'], $bad, $ip),
+            runInvoicingApiDeleteEngagement(['id' => 1], $bad, $ip),
+            runInvoicingApiGetTimeEntry($bad, $ip, 1),
+            runInvoicingApiCreateTimeEntry(['engagement_id' => 1, 'worked_date' => '2026-01-01', 'hours' => 1], $bad, $ip),
+            runInvoicingApiUpdateTimeEntry(['id' => 1, 'hours' => 2], $bad, $ip),
+            runInvoicingApiDeleteTimeEntry(['id' => 1], $bad, $ip),
+            runInvoicingApiGetOutboundInvoice($bad, $ip, 1),
+            runInvoicingApiPublishCombinedInvoice(['engagement_id' => 1, 'anchor_month' => '2026-01'], $bad, $ip),
+            runInvoicingApiRefreshOutboundInvoice($bad, $ip, ['id' => 1]),
+            runInvoicingApiAttachTasksDocument($bad, $ip, ['id' => 1, 'tasks_document_id' => 1]),
+            runInvoicingApiCancelOutboundInvoice($bad, $ip, ['id' => 1]),
+            runInvoicingApiListUnpaidAging($bad, $ip),
+            runInvoicingApiListAuditLog($bad, $ip, 10, 0),
+            runInvoicingApiListConfig($bad, $ip),
+            runInvoicingApiListApiKeysMeta($bad, $ip),
+            runInvoicingApiListAdminUsers($bad, $ip),
+        ];
+        foreach ($calls as $r) {
+            $this->assertSame(401, $r['code'] ?? 0, json_encode($r));
+        }
+
+        putenv('INVOICING_WEB_BASE=/invoicing');
+        $safe = dsc_invoicing_safe_admin_return('/invoicing/admin/invoices.php?tab=list');
+        $this->assertStringContainsString('invoices.php', $safe);
+        putenv('INVOICING_WEB_BASE');
+
+        $_SERVER['REQUEST_URI'] = '/admin/companies.php';
+        $this->assertSame('/admin/companies.php', dsc_invoicing_current_request_return());
+        $_SERVER['REQUEST_URI'] = '/admin/login.php';
+        $this->assertSame('', dsc_invoicing_current_request_return());
+        unset($_SERVER['REQUEST_URI']);
+
+        initializeDatabase();
+        $this->assertSame('5', (string) get_config('schema_version'));
+    }
 }

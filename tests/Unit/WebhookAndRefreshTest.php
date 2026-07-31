@@ -58,6 +58,15 @@ final class WebhookAndRefreshTest extends TestCase
         $found = dsc_invoicing_square_webhook_find_invoice_id(['nested' => ['invoice_id' => 'inv:abc']]);
         $this->assertSame('inv:abc', $found);
         $this->assertNull(dsc_invoicing_square_webhook_find_invoice_id(['x' => 1]));
+
+        $updBody = json_encode([
+            'type' => 'invoice.updated',
+            'data' => ['object' => ['invoice' => ['id' => $invId]]],
+        ], JSON_THROW_ON_ERROR);
+        $updSig = dsc_invoicing_square_webhook_compute_expected_signature($cfg['url'], $updBody, $cfg['key']);
+        $upd = dsc_invoicing_square_webhook_run($db, $updBody, $updSig);
+        $this->assertSame(200, $upd['code']);
+        $this->assertSame($outboundId, $upd['payload']['outbound_id'] ?? null);
     }
 
     public function testAttachTasksDocumentAndHydrateLegacy(): void

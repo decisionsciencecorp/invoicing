@@ -37,7 +37,6 @@ while ($row = $er->fetchArray(SQLITE3_ASSOC)) {
 
 $adminPageTitle = 'Engagements';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
 ?>
 
 <div class="nav-row">

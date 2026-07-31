@@ -11,6 +11,7 @@ $db = getDbConnection();
 
 $flash = '';
 $flashType = 'ok';
+$forceTab = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish_invoice') {
     requireCsrfToken();
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'attach_tasks_doc') {
     requireCsrfToken();
+    $forceTab = 'list';
     $outboundId = (int) ($_POST['outbound_id'] ?? 0);
     $tasksDocId = (int) ($_POST['tasks_document_id'] ?? 0);
     dsc_billing_hydrate_legacy_outbound_row($db, $outboundId);
@@ -56,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'attach_
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'backfill_psf_docs') {
     requireCsrfToken();
+    $forceTab = 'list';
     $res = dsc_billing_backfill_psf_invoice_documents($db);
     if (!empty($res['ok'])) {
         $flash = 'Backfill complete — ' . (int) ($res['updated'] ?? 0) . ' invoice row(s) updated from PSF Tasks docs.';
@@ -68,6 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'backfil
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'refresh_invoice_status') {
     requireCsrfToken();
+    $forceTab = (string) ($_POST['return_tab'] ?? 'list');
+    if (!in_array($forceTab, ['list', 'unpaid'], true)) {
+        $forceTab = 'list';
+    }
     $outboundId = (int) ($_POST['outbound_id'] ?? 0);
     $res = dsc_billing_refresh_outbound_payment_status($db, $outboundId);
     if (!empty($res['ok'])) {
@@ -79,6 +86,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'refresh
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'cancel_invoice') {
+    requireCsrfToken();
+    $forceTab = (string) ($_POST['return_tab'] ?? 'list');
+    if ($forceTab !== 'unpaid') {
+        $forceTab = 'list';
+    }
+    $outboundId = (int) ($_POST['outbound_id'] ?? 0);
+    require_once __DIR__ . '/../includes/audit.php';
+    $res = dsc_billing_cancel_outbound_invoice($db, $outboundId);
+    if (!empty($res['ok'])) {
+        $flash = 'Invoice canceled in Square. Local status: ' . (string) ($res['payment_status'] ?? 'canceled') . '.';
+        $flashType = 'ok';
+        dsc_invoicing_audit_log(
+            'outbound.cancel',
+            'admin:' . (string) ($_SESSION['username'] ?? 'admin'),
+            'outbound_invoice',
+            (string) $outboundId,
+            ['payment_status' => $res['payment_status'] ?? null]
+        );
+    } else {
+        $flash = $res['error'] ?? 'Cancel failed.';
+        $flashType = 'err';
+    }
+}
+
 $selE = (int) ($_GET['engagement_id'] ?? ($_POST['engagement_id'] ?? 0));
 $selM = trim((string) ($_GET['anchor_month'] ?? ($_POST['anchor_month'] ?? gmdate('Y-m'))));
 $selDoc = (int) ($_GET['tasks_document_id'] ?? ($_POST['tasks_document_id'] ?? 0));
@@ -86,6 +118,13 @@ $selTier = dsc_billing_normalize_tier_key((string) ($_GET['tier_key'] ?? ($_POST
 if (!dsc_billing_valid_month($selM)) {
     $selM = gmdate('Y-m');
 }
+
+$tab = strtolower(trim((string) ($forceTab ?? $_GET['tab'] ?? 'publish')));
+if (!in_array($tab, ['publish', 'list', 'unpaid'], true)) {
+    $tab = 'publish';
+}
+$listPageSize = 25;
+$listPage = max(1, (int) ($_GET['page'] ?? 1));
 
 $selEngMode = 'hourly';
 $selEngRow = null;
@@ -119,45 +158,78 @@ while ($row = $er->fetchArray(SQLITE3_ASSOC)) {
     $engList[] = $row;
 }
 
+$listTotal = (int) $db->querySingle('SELECT COUNT(*) FROM outbound_invoices');
+$listPages = max(1, (int) ceil($listTotal / $listPageSize));
+if ($listPage > $listPages) {
+    $listPage = $listPages;
+}
+$listOffset = ($listPage - 1) * $listPageSize;
+
 $rows = [];
-$ir = $db->query(
+$ir = $db->prepare(
     'SELECT o.*, e.name AS engagement_name, c.name AS company_name '
     . 'FROM outbound_invoices o '
     . 'JOIN engagements e ON e.id = o.engagement_id '
     . 'JOIN companies c ON c.id = e.company_id '
-    . 'ORDER BY o.anchor_month DESC, c.name COLLATE NOCASE LIMIT 100'
+    . 'ORDER BY o.anchor_month DESC, o.id DESC, c.name COLLATE NOCASE '
+    . 'LIMIT :lim OFFSET :off'
 );
-while ($row = $ir->fetchArray(SQLITE3_ASSOC)) {
+$ir->bindValue(':lim', $listPageSize, SQLITE3_INTEGER);
+$ir->bindValue(':off', $listOffset, SQLITE3_INTEGER);
+$irq = $ir->execute();
+while ($row = $irq->fetchArray(SQLITE3_ASSOC)) {
     $rows[] = $row;
 }
 
-$accountingDocs = dsc_tasks_list_accounting_documents();
+$tasksSource = $selE > 0
+    ? dsc_tasks_source_for_engagement($db, $selE)
+    : ['project_id' => dsc_tasks_psf_project_id(), 'directory_path' => dsc_tasks_default_directory_path()];
+$accountingDocs = $selE > 0
+    ? dsc_tasks_list_accounting_documents_for_engagement($db, $selE)
+    : dsc_tasks_list_accounting_documents();
 $tasksBase = dsc_tasks_api_config()['base_url'] !== ''
     ? dsc_tasks_api_config()['base_url']
     : 'https://tasks.decisionsciencecorp.com';
 
+$unpaidRows = $tab === 'unpaid' ? dsc_billing_list_unpaid_aging($db) : [];
+$unpaidCount = $tab === 'unpaid'
+    ? count($unpaidRows)
+    : (int) $db->querySingle(
+        "SELECT COUNT(*) FROM outbound_invoices WHERE LOWER(COALESCE(payment_status, '')) NOT IN ('paid', 'canceled')"
+    );
+
+$invoicesBase = dsc_invoicing_href('admin/invoices.php');
+$publishTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=publish';
+$listTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=list';
+$unpaidTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=unpaid';
+$listPageUrl = static function (int $page) use ($invoicesBase): string {
+    $sep = str_contains($invoicesBase, '?') ? '&' : '?';
+    return $invoicesBase . $sep . 'tab=list&page=' . max(1, $page);
+};
+
 $adminPageTitle = 'Invoices';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Invoices',
+    'subtitle' => 'Hourly needs a Tasks accounting doc; flat/tier is Net 30 with optional doc.',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Combined monthly invoices</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
-
-<p style="color:#8b949e;margin-top:0;">
-    <strong>Hourly:</strong> retainer for anchor month M plus overage from M−1 (Tasks accounting doc required).
-    <strong>Flat/tier:</strong> pick Tier 1 or Tier 2 at publish (Net 30); accounting doc optional.
-</p>
 
 <?php if ($flash !== ''): ?>
     <div class="message <?= $flashType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
+<nav class="tabbar" aria-label="Invoices sections">
+    <a href="<?= htmlspecialchars($publishTabUrl, ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'publish' ? 'active' : '' ?>">Publish</a>
+    <a href="<?= htmlspecialchars($listPageUrl(1), ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'list' ? 'active' : '' ?>">
+        List<?= $listTotal > 0 ? ' (' . $listTotal . ')' : '' ?>
+    </a>
+    <a href="<?= htmlspecialchars($unpaidTabUrl, ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'unpaid' ? 'active' : '' ?>">
+        Unpaid / AR<?= $unpaidCount > 0 ? ' (' . $unpaidCount . ')' : '' ?>
+    </a>
+</nav>
+
+<?php if ($tab === 'publish'): ?>
 <div class="info-box">
     <h2 style="margin-top:0;">Publish invoice</h2>
     <form method="GET" id="invoice-preview-form" style="margin-bottom:1rem;">
@@ -201,8 +273,10 @@ require_once __DIR__ . '/includes/nav.php';
                     <?php endforeach; ?>
                 </select>
                 <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
-                    From <a href="<?= htmlspecialchars($tasksBase . '/admin/project.php?id=' . dsc_tasks_psf_project_id(), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">ProSpikeFlow Work</a> → docs → <code>client-facing</code> time logs.
-                    The markdown body becomes the <strong>client invoice page</strong> (snapshotted at publish).
+                    From Tasks project
+                    <a href="<?= htmlspecialchars($tasksBase . '/admin/project.php?id=' . (int) $tasksSource['project_id'], ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">#<?= (int) $tasksSource['project_id'] ?></a>
+                    → <code><?= htmlspecialchars((string) $tasksSource['directory_path'], ENT_QUOTES, 'UTF-8') ?></code>
+                    (override per engagement). Markdown body becomes the <strong>client invoice page</strong>.
                 </p>
             <?php else: ?>
                 <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" required
@@ -268,9 +342,73 @@ require_once __DIR__ . '/includes/nav.php';
         <?php endif; ?>
     <?php endif; ?>
 </div>
-
+<?php elseif ($tab === 'unpaid'): ?>
 <div class="info-box">
-    <h2 style="margin-top:0;">Recent outbound invoices</h2>
+    <h2 style="margin-top:0;">Unpaid / accounts receivable</h2>
+    <p style="color:#8b949e;font-size:.875rem;margin:0 0 1rem;">
+        Open invoices that are not paid or canceled, with aging buckets from due date (UTC).
+    </p>
+    <?php if ($unpaidRows === []): ?>
+        <p style="margin:0;color:#8b949e;">Nothing unpaid.</p>
+    <?php else: ?>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                <thead>
+                    <tr style="text-align:left;border-bottom:1px solid #30363d;">
+                        <th style="padding:0.4rem;">Aging</th>
+                        <th style="padding:0.4rem;">Due</th>
+                        <th style="padding:0.4rem;">Month</th>
+                        <th style="padding:0.4rem;">Company / engagement</th>
+                        <th style="padding:0.4rem;text-align:right;">Total</th>
+                        <th style="padding:0.4rem;">Status</th>
+                        <th style="padding:0.4rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($unpaidRows as $x): ?>
+                        <tr style="border-bottom:1px solid #21262d;">
+                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['aging_bucket'], ENT_QUOTES, 'UTF-8') ?></code>
+                                <?php if ($x['days_past_due'] !== null): ?>
+                                    <span style="color:#8b949e;"> · <?= (int) $x['days_past_due'] ?>d</span>
+                                <?php endif; ?>
+                            </td>
+                            <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($x['due_date'] !== '' ? $x['due_date'] : '—'), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['anchor_month'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;">
+                                <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
+                                <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>
+                            </td>
+                            <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
+                            <td style="padding:0.35rem 0;"><span class="<?= htmlspecialchars(inv_status_pill_class((string) $x['payment_status']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                            <td style="padding:0.35rem 0;">
+                                <form method="POST" style="display:inline;">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="form" value="refresh_invoice_status">
+                                    <input type="hidden" name="return_tab" value="unpaid">
+                                    <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
+                                    <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Refresh</button>
+                                </form>
+                                <?php if (strtolower((string) $x['payment_status']) !== 'paid'): ?>
+                                    <form method="POST" style="display:inline;margin-left:.25rem;"
+                                          onsubmit="return confirm('Cancel this invoice in Square?');">
+                                        <?= csrfField() ?>
+                                        <input type="hidden" name="form" value="cancel_invoice">
+                                        <input type="hidden" name="return_tab" value="unpaid">
+                                        <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
+                                        <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Cancel</button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</div>
+<?php else: /* list tab */ ?>
+<div class="info-box">
+    <h2 style="margin-top:0;">Invoice list</h2>
     <?php if ($accountingDocs !== []): ?>
         <form method="POST" style="margin-bottom:1rem;">
             <?= csrfField() ?>
@@ -282,6 +420,11 @@ require_once __DIR__ . '/includes/nav.php';
     <?php if ($rows === []): ?>
         <p style="margin:0;color:#8b949e;">None yet.</p>
     <?php else: ?>
+        <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
+            Showing <?= (int) ($listOffset + 1) ?>–<?= (int) min($listOffset + count($rows), $listTotal) ?>
+            of <?= (int) $listTotal ?>
+            · page <?= (int) $listPage ?> of <?= (int) $listPages ?>
+        </p>
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
                 <thead>
@@ -317,7 +460,7 @@ require_once __DIR__ . '/includes/nav.php';
                                     : 'Hourly' ?>
                             </td>
                             <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
-                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;"><span class="<?= htmlspecialchars(inv_status_pill_class((string) $x['payment_status']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                             <td style="padding:0.35rem 0;">
                                 <?php if ($isFlatRow): ?>
                                     <?php if ($clientUrl !== ''): ?>
@@ -381,13 +524,47 @@ require_once __DIR__ . '/includes/nav.php';
                                     <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
                                     <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Refresh</button>
                                 </form>
+                                <?php
+                                $ps = strtolower((string) ($x['payment_status'] ?? ''));
+                                if (!in_array($ps, ['paid', 'canceled'], true)):
+                                ?>
+                                    <form method="POST" style="display:inline;margin-left:.25rem;"
+                                          onsubmit="return confirm('Cancel this invoice in Square?');">
+                                        <?= csrfField() ?>
+                                        <input type="hidden" name="form" value="cancel_invoice">
+                                        <input type="hidden" name="return_tab" value="list">
+                                        <input type="hidden" name="outbound_id" value="<?= (int) $x['id'] ?>">
+                                        <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Cancel</button>
+                                    </form>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
+        <?php if ($listPages > 1): ?>
+            <nav aria-label="Invoice list pages" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem;">
+                <?php if ($listPage > 1): ?>
+                    <a class="btn btn-outline" href="<?= htmlspecialchars($listPageUrl($listPage - 1), ENT_QUOTES, 'UTF-8') ?>">← Prev</a>
+                <?php endif; ?>
+                <?php
+                $windowStart = max(1, $listPage - 2);
+                $windowEnd = min($listPages, $listPage + 2);
+                for ($p = $windowStart; $p <= $windowEnd; $p++):
+                ?>
+                    <a href="<?= htmlspecialchars($listPageUrl($p), ENT_QUOTES, 'UTF-8') ?>"
+                       style="padding:.25rem .55rem;text-decoration:none;border-radius:4px;<?= $p === $listPage ? 'background:#1f6feb;color:#fff;' : 'color:#58a6ff;' ?>">
+                        <?= (int) $p ?>
+                    </a>
+                <?php endfor; ?>
+                <?php if ($listPage < $listPages): ?>
+                    <a class="btn btn-outline" href="<?= htmlspecialchars($listPageUrl($listPage + 1), ENT_QUOTES, 'UTF-8') ?>">Next →</a>
+                <?php endif; ?>
+            </nav>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

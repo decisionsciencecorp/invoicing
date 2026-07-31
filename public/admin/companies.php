@@ -30,51 +30,47 @@ while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
 
 $adminPageTitle = 'Companies';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Companies',
+    'subtitle' => 'One Square customer ID per company (optional until wired).',
+    'actions_html' => '<a class="btn btn-primary" href="'
+        . htmlspecialchars(dsc_invoicing_href('admin/company-edit.php'), ENT_QUOTES, 'UTF-8')
+        . '"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add company</a>',
+]);
 ?>
 
-<div class="nav-row">
-    <h1>Companies</h1>
-    <div class="stack">
-        <a class="btn" href="<?= htmlspecialchars(dsc_invoicing_href('admin/company-edit.php'), ENT_QUOTES, 'UTF-8') ?>">Add company</a>
-        <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-            <?= csrfField() ?>
-            <button type="submit" class="btn">Logout</button>
-        </form>
-    </div>
-</div>
-
-<div class="info-box">
-    <p style="color:#8b949e;margin-top:0;">One Square Customer ID per company (optional until Square Customers API wiring).</p>
+<div class="surface surface-pad">
     <?php if ($list === []): ?>
-        <p>No companies yet. <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/company-edit.php'), ENT_QUOTES, 'UTF-8') ?>">Add one</a>.</p>
+        <p class="mb-0">No companies yet. <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/company-edit.php'), ENT_QUOTES, 'UTF-8') ?>">Add one</a>.</p>
     <?php else: ?>
-        <table style="width:100%;border-collapse:collapse;">
-            <thead>
-                <tr style="text-align:left;border-bottom:1px solid #30363d;">
-                    <th style="padding:0.4rem 0;">Name</th>
-                    <th style="padding:0.4rem 0;">Billing</th>
-                    <th style="padding:0.4rem 0;">Billing email</th>
-                    <th style="padding:0.4rem 0;">Square customer</th>
-                    <th style="padding:0.4rem 0;">Engagements</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($list as $c): ?>
-                    <tr style="border-bottom:1px solid #21262d;">
-                        <td style="padding:0.35rem 0;">
-                            <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/company-edit.php?id=' . (int) $c['id']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $c['name'], ENT_QUOTES, 'UTF-8') ?></a>
-                        </td>
-                        <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($c['billing_modes_label'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($c['billing_email'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.35rem 0;"><code style="font-size:0.8rem;"><?= htmlspecialchars((string) ($c['square_customer_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td>
-                        <td style="padding:0.35rem 0;">
-                            <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/engagements.php?company_id=' . (int) $c['id']), ENT_QUOTES, 'UTF-8') ?>"><?= (int) $c['engagement_count'] ?></a>
-                        </td>
+        <div class="table-responsive">
+            <table class="inv-table inv-table-cards">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Billing</th>
+                        <th>Billing email</th>
+                        <th>Square customer</th>
+                        <th>Engagements</th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php foreach ($list as $c): ?>
+                        <tr>
+                            <td data-label="Name">
+                                <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/company-edit.php?id=' . (int) $c['id']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $c['name'], ENT_QUOTES, 'UTF-8') ?></a>
+                            </td>
+                            <td data-label="Billing"><?= htmlspecialchars((string) ($c['billing_modes_label'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Email"><?= htmlspecialchars((string) ($c['billing_email'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                            <td data-label="Square"><code><?= htmlspecialchars((string) ($c['square_customer_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td data-label="Engagements">
+                                <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/engagements.php?company_id=' . (int) $c['id']), ENT_QUOTES, 'UTF-8') ?>"><?= (int) $c['engagement_count'] ?></a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php endif; ?>
 </div>
 

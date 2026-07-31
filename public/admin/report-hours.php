@@ -31,57 +31,51 @@ while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
 
 $adminPageTitle = 'Hours by billing period';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Hours rollup',
+    'subtitle' => 'Hours by engagement and month',
+]);
 ?>
 
-<div class="nav-row">
-    <h1>Hours rollup</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
-
-<p style="color:#8b949e;margin-top:0;">Per engagement per <strong>billing_period_month</strong> (from logged work dates). Overage = max(0, logged − included hours/mo).</p>
+<p class="text-secondary">Per engagement per <strong>billing period month</strong> (from logged work dates). Overage = max(0, logged − included hours/mo).</p>
 
 <div class="info-box">
     <?php if ($rows === []): ?>
         <p>No time entries yet.</p>
     <?php else: ?>
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+        <div class="table-responsive">
+            <table class="inv-table">
                 <thead>
-                    <tr style="text-align:left;border-bottom:1px solid #30363d;">
-                        <th style="padding:0.4rem;">Period</th>
-                        <th style="padding:0.4rem;">Company</th>
-                        <th style="padding:0.4rem;">Engagement</th>
-                        <th style="padding:0.4rem;text-align:right;">Logged</th>
-                        <th style="padding:0.4rem;text-align:right;">Included</th>
-                        <th style="padding:0.4rem;text-align:right;">Overage</th>
-                        <th style="padding:0.4rem;text-align:right;">$/hr</th>
-                        <th style="padding:0.4rem;text-align:right;">Est. overage $</th>
-                        <th></th>
+                    <tr>
+                        <th>Period</th>
+                        <th>Company</th>
+                        <th>Engagement</th>
+                        <th class="text-end">Logged</th>
+                        <th class="text-end">Included</th>
+                        <th class="text-end">Overage</th>
+                        <th class="text-end">$/hr</th>
+                        <th class="text-end">Est. overage $</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($rows as $x): ?>
-                        <tr style="border-bottom:1px solid #21262d;">
-                            <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) $x['billing_period_month'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="padding:0.35rem 0;">
+                        <tr>
+                            <td><?= htmlspecialchars((string) $x['billing_period_month'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td>
                                 <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php?engagement_id=' . (int) $x['engagement_id']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></a>
                             </td>
-                            <td style="padding:0.35rem 0;text-align:right;"><?= htmlspecialchars((string) $x['logged_hours'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="padding:0.35rem 0;text-align:right;"><?= (int) $x['included_hours_per_month'] ?></td>
-                            <td style="padding:0.35rem 0;text-align:right;"><?= htmlspecialchars((string) $x['overage_hours'], ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['hourly_rate_cents']) / 100, 2) ?></td>
-                            <td style="padding:0.35rem 0;text-align:right;">$<?= number_format($x['estimated_overage_cents'] / 100, 2) ?></td>
+                            <td class="text-end"><?= htmlspecialchars((string) $x['logged_hours'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td class="text-end"><?= (int) $x['included_hours_per_month'] ?></td>
+                            <td class="text-end"><?= htmlspecialchars((string) $x['overage_hours'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td class="text-end">$<?= number_format(((int) $x['hourly_rate_cents']) / 100, 2) ?></td>
+                            <td class="text-end">$<?= number_format($x['estimated_overage_cents'] / 100, 2) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-        <p style="color:#8b949e;font-size:0.8rem;margin-bottom:0;">Estimated overage billing is illustrative (PRD billing rules + invoicing automation P2).</p>
+        <p class="text-secondary small mb-0 mt-3">Estimated overage billing is illustrative (PRD billing rules).</p>
     <?php endif; ?>
 </div>
 

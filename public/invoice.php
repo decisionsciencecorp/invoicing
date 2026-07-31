@@ -22,6 +22,20 @@ if ($token === '') {
     exit;
 }
 
+// Liberal public rate limits (abuse brake, not harsh UX).
+require_once __DIR__ . '/includes/functions.php';
+$clientIp = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+$tokenBucket = substr(hash('sha256', $token), 0, 16);
+if (!checkRateLimit('public_invoice:ip:' . $clientIp, 180, 60)
+    || !checkRateLimit('public_invoice:tok:' . $tokenBucket . ':' . $clientIp, 90, 60)
+) {
+    http_response_code(429);
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Retry-After: 60');
+    echo 'Too many requests. Please try again in a minute.';
+    exit;
+}
+
 $db = getDbConnection();
 $row = dsc_billing_get_outbound_by_public_token($db, $token);
 if ($row === null) {
@@ -29,6 +43,18 @@ if ($row === null) {
     header('Content-Type: text/plain; charset=utf-8');
     echo 'Invoice not found.';
     exit;
+}
+
+// Keep client page honest after Square pay: refresh unpaid/partial rows on load.
+// Fail soft — show last known local status if Square is unreachable.
+if (dsc_billing_outbound_needs_payment_refresh($row)) {
+    $refresh = dsc_billing_refresh_outbound_payment_status($db, (int) ($row['id'] ?? 0));
+    if (!empty($refresh['ok'])) {
+        $reloaded = dsc_billing_get_outbound_by_public_token($db, $token);
+        if (is_array($reloaded)) {
+            $row = $reloaded;
+        }
+    }
 }
 
 $company = (string) ($row['company_name'] ?? '');
@@ -57,29 +83,23 @@ if ($feeDue === '' && $isFlat) {
 header('Content-Type: text/html; charset=utf-8');
 header('Link: <' . $canonical . '>; rel="canonical"');
 ?>
+<?php
+require_once __DIR__ . '/includes/skin-lab-env.php';
+$invSkinSlug = invSkinEffectiveSlug(null);
+$invBsTheme = invSkinBootstrapTheme($invSkinSlug);
+?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="<?= htmlspecialchars($invBsTheme, ENT_QUOTES, 'UTF-8') ?>" data-skin-comp="<?= htmlspecialchars($invSkinSlug, ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('css/style.css'), ENT_QUOTES, 'UTF-8') ?>">
-    <style>
-        .invoice-hero { margin-bottom: 1.5rem; }
-        .invoice-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
-        .pay-card { border: 1px solid #30363d; border-radius: 8px; padding: 1rem; background: #161b22; }
-        .pay-card.paid { border-color: #238636; }
-        .pay-card h3 { margin: 0 0 .5rem; font-size: 1rem; }
-        .amount { font-size: 1.5rem; font-weight: 600; margin: .25rem 0 .75rem; }
-        .due { color: #8b949e; font-size: .875rem; margin-bottom: .75rem; }
-        .status-pill { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
-        .status-pill.paid { background: #23863633; color: #3fb950; }
-        .status-pill.published { background: #1f6feb33; color: #58a6ff; }
-        .breakdown { margin-top: 2rem; }
-    </style>
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=9', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(invSkinStylesheetHref($invSkinSlug), ENT_QUOTES, 'UTF-8') ?>">
 </head>
-<body>
-<main class="container" style="max-width: 52rem; margin: 2rem auto; padding: 0 1rem;">
+<body class="inv-app">
+<main class="invoice-page">
     <div class="invoice-hero">
         <p style="color:#8b949e;margin:0 0 .25rem;">Decision Science Corp</p>
         <h1 style="margin:0 0 .35rem;"><?= htmlspecialchars($company, ENT_QUOTES, 'UTF-8') ?></h1>

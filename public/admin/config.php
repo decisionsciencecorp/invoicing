@@ -40,39 +40,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square'
     $squareMessageType = 'ok';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_webhook') {
-    requireCsrfToken();
-    $whUrl = trim((string) ($_POST['square_webhook_notification_url'] ?? ''));
-    $whKey = trim((string) ($_POST['square_webhook_signature_key'] ?? ''));
-    set_config('square_webhook_notification_url', $whUrl);
-    if ($whKey !== '') {
-        set_config('square_webhook_signature_key', $whKey);
-    }
-    $squareMessage = 'Webhook settings saved. Notification URL must match the subscription byte-for-byte (HMAC includes this exact string).';
-    $squareMessageType = 'ok';
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'app_paths') {
-    requireCsrfToken();
-    $webBasePath = trim((string) ($_POST['web_base_path'] ?? ''));
-    set_config('web_base_path', $webBasePath);
-    $siteUrl = trim((string) ($_POST['site_url'] ?? ''));
-    set_config('site_url', $siteUrl);
-    $squareMessage = 'App path settings saved.';
-    $squareMessageType = 'ok';
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'tasks_dsc') {
-    requireCsrfToken();
-    set_config('tasks_dsc_base_url', trim((string) ($_POST['tasks_dsc_base_url'] ?? '')));
-    $key = trim((string) ($_POST['tasks_dsc_api_key'] ?? ''));
-    if ($key !== '') {
-        set_config('tasks_dsc_api_key', $key);
-    }
-    $squareMessage = 'Tasks API settings saved.';
-    $squareMessageType = 'ok';
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_test') {
     requireCsrfToken();
     square_config_reset();
@@ -88,6 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'square_
     }
 }
 
+// Legacy posts from the old combined Square page — send them home.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $legacy = (string) ($_POST['form'] ?? '');
+    if ($legacy === 'square_webhook') {
+        header('Location: ' . dsc_invoicing_href('admin/webhooks.php?section=signing'));
+        exit;
+    }
+    if ($legacy === 'app_paths') {
+        header('Location: ' . dsc_invoicing_href('admin/site.php'));
+        exit;
+    }
+    if ($legacy === 'tasks_dsc') {
+        header('Location: ' . dsc_invoicing_href('admin/tasks-settings.php'));
+        exit;
+    }
+}
+
 square_config_reset();
 $cfg = dsc_invoicing_square_config();
 
@@ -99,95 +83,47 @@ if (is_string($t) && strlen($t) > 12) {
     $masked = '(stored)';
 }
 
-$whSigStored = trim((string) (get_config('square_webhook_signature_key') ?? '')) !== '';
-
-$adminPageTitle = 'Square configuration';
+$adminPageTitle = 'Square';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Square',
+    'subtitle' => 'API credentials and connection test (sandbox until production is blessed)',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Square configuration</h1>
-    <div class="stack">
-        <a class="btn btn-outline" href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">Dashboard</a>
-        <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-            <?= csrfField() ?>
-            <button type="submit" class="btn">Logout</button>
-        </form>
-    </div>
-</div>
-
-<p style="color:#8b949e;font-size:.875rem;">Use <strong>sandbox only</strong> until production is blessed (PRD D10).</p>
 
 <?php if ($squareMessage !== ''): ?>
     <div class="message <?= $squareMessageType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($squareMessage, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
 <div class="info-box">
-    <h2 style="margin-top:0;">Credentials</h2>
+    <h2 class="h5 mt-0">Credentials</h2>
     <form method="POST">
         <?= csrfField() ?>
         <input type="hidden" name="form" value="square">
         <label for="square_environment">Environment</label>
-        <select id="square_environment" name="square_environment">
+        <select class="form-select" id="square_environment" name="square_environment">
             <option value="sandbox" <?= ($cfg['environment'] ?? '') === 'sandbox' ? 'selected' : '' ?>>sandbox</option>
             <option value="production" <?= ($cfg['environment'] ?? '') === 'production' ? 'selected' : '' ?>>production</option>
         </select>
         <label for="square_access_token">Access token (leave blank to keep existing)</label>
-        <textarea id="square_access_token" name="square_access_token" rows="2" autocomplete="off" placeholder="<?= $masked !== '' ? 'stored: ' . $masked : 'EAAA…' ?>"></textarea>
+        <textarea class="form-control" id="square_access_token" name="square_access_token" rows="2" autocomplete="off" placeholder="<?= $masked !== '' ? 'stored: ' . $masked : 'EAAA…' ?>"></textarea>
         <label for="square_application_id">Application ID (optional)</label>
-        <input type="text" id="square_application_id" name="square_application_id" value="<?= htmlspecialchars((string) (get_config('square_application_id') ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+        <input class="form-control" type="text" id="square_application_id" name="square_application_id" value="<?= htmlspecialchars((string) (get_config('square_application_id') ?? ''), ENT_QUOTES, 'UTF-8') ?>">
         <label for="square_location_id">Location ID (optional)</label>
-        <input type="text" id="square_location_id" name="square_location_id" value="<?= htmlspecialchars((string) (get_config('square_location_id') ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-        <button type="submit" class="btn" style="margin-top:1rem;">Save</button>
+        <input class="form-control" type="text" id="square_location_id" name="square_location_id" value="<?= htmlspecialchars((string) (get_config('square_location_id') ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+        <button type="submit" class="btn btn-primary mt-3">Save</button>
     </form>
-    <form method="POST" style="margin-top:1rem;">
+    <form method="POST" class="mt-3">
         <?= csrfField() ?>
         <input type="hidden" name="form" value="square_test">
         <button type="submit" class="btn btn-outline">Test connection (GET /locations)</button>
     </form>
 </div>
 
-<div class="info-box" style="margin-top:1.5rem;">
-    <h2 style="margin-top:0;">App paths</h2>
-    <p style="color:#8b949e;font-size:.875rem;">Leave web base path blank when vhost document root points at <code>public/</code>. Set <strong>Site URL</strong> when invoice share links must be absolute (e.g. <code>https://invoicing.decisionsciencecorp.com</code>) — used by CLI/cron when <code>SITE_URL</code> env is unset.</p>
-    <form method="POST">
-        <?= csrfField() ?>
-        <input type="hidden" name="form" value="app_paths">
-        <label for="site_url">Site URL</label>
-        <input type="url" id="site_url" name="site_url" style="max-width:100%;width:100%;box-sizing:border-box;margin-bottom:.75rem;" value="<?= htmlspecialchars((string) (get_config('site_url') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="https://invoicing.decisionsciencecorp.com">
-        <label for="web_base_path">Web base path</label>
-        <input type="text" id="web_base_path" name="web_base_path" value="<?= htmlspecialchars((string) (get_config('web_base_path') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="/public">
-        <button type="submit" class="btn" style="margin-top:1rem;">Save app path</button>
-    </form>
-</div>
-
-<div class="info-box" style="margin-top:1.5rem;">
-    <h2 style="margin-top:0;">Webhook (invoice.payment_made)</h2>
-    <p style="color:#8b949e;font-size:.875rem;">Used by <code>public/api/square-webhook.php</code>. The notification URL Square stores must match <strong>exactly</strong> what you enter here so HMAC verification succeeds.</p>
-    <form method="POST">
-        <?= csrfField() ?>
-        <input type="hidden" name="form" value="square_webhook">
-        <label for="square_webhook_notification_url">Notification URL</label>
-        <input type="url" id="square_webhook_notification_url" name="square_webhook_notification_url" spellcheck="false" style="max-width:100%;width:100%;box-sizing:border-box;" value="<?= htmlspecialchars((string) (get_config('square_webhook_notification_url') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="https://your-host/.../api/square-webhook.php">
-        <label for="square_webhook_signature_key">Signature key (starts with typically whsec_…)</label>
-        <textarea id="square_webhook_signature_key" name="square_webhook_signature_key" rows="2" autocomplete="off" placeholder="<?= $whSigStored ? 'Stored — paste a new key to replace' : 'Signature key (whsec…)' ?>"></textarea>
-        <button type="submit" class="btn" style="margin-top:1rem;">Save webhook settings</button>
-    </form>
-</div>
-
-<div class="info-box" style="margin-top:1.5rem;">
-    <h2 style="margin-top:0;">Tasks API (accounting documents)</h2>
-    <p style="color:#8b949e;font-size:.875rem;">Used when publishing invoices to fetch and snapshot markdown from <code>tasks.decisionsciencecorp.com</code>. Env vars <code>TASKS_DSC_BASE_URL</code> / <code>TASKS_DSC_OTTOVERNAL_API_KEY</code> override when set on the server.</p>
-    <form method="POST">
-        <?= csrfField() ?>
-        <input type="hidden" name="form" value="tasks_dsc">
-        <label for="tasks_dsc_base_url">Base URL</label>
-        <input type="url" id="tasks_dsc_base_url" name="tasks_dsc_base_url" style="max-width:100%;width:100%;box-sizing:border-box;" value="<?= htmlspecialchars((string) (get_config('tasks_dsc_base_url') ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="https://tasks.decisionsciencecorp.com">
-        <label for="tasks_dsc_api_key">API key (leave blank to keep existing)</label>
-        <textarea id="tasks_dsc_api_key" name="tasks_dsc_api_key" rows="2" autocomplete="off" placeholder="X-API-Key value"></textarea>
-        <button type="submit" class="btn" style="margin-top:1rem;">Save Tasks API</button>
-    </form>
-</div>
+<p class="text-secondary small mt-3 mb-0">
+    Webhook signing → <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/webhooks.php?section=signing'), ENT_QUOTES, 'UTF-8') ?>">Settings → Webhooks</a>.
+    Site URL / paths → <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/site.php'), ENT_QUOTES, 'UTF-8') ?>">Settings → Site</a>.
+    Tasks accounting API → <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/tasks-settings.php'), ENT_QUOTES, 'UTF-8') ?>">Settings → Tasks</a>.
+</p>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

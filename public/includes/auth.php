@@ -11,13 +11,23 @@ function isLoggedIn(): bool {
 
 function requireAuth(): void {
     if (!isLoggedIn()) {
-        header('Location: ' . dsc_invoicing_href('admin/login.php'));
+        $login = dsc_invoicing_href('admin/login.php');
+        $return = dsc_invoicing_current_request_return();
+        if ($return !== '') {
+            $login .= '?return=' . rawurlencode($return);
+        }
+        header('Location: ' . $login);
         exit;
     }
     $me = getCurrentUser();
     if (!$me || empty($me['is_active'])) {
         logout();
-        header('Location: ' . dsc_invoicing_href('admin/login.php'));
+        $login = dsc_invoicing_href('admin/login.php');
+        $return = dsc_invoicing_current_request_return();
+        if ($return !== '') {
+            $login .= '?return=' . rawurlencode($return);
+        }
+        header('Location: ' . $login);
         exit;
     }
 }
@@ -60,7 +70,7 @@ function getCurrentUser(): ?array {
     }
     $db = getDbConnection();
     $stmt = $db->prepare(
-        'SELECT id, username, created_at, is_active FROM admin_users WHERE id = :id'
+        'SELECT id, username, created_at, is_active, skin_slug FROM admin_users WHERE id = :id'
     );
     $stmt->bindValue(':id', $_SESSION['user_id'], SQLITE3_INTEGER);
     $r = $stmt->execute();

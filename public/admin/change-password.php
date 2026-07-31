@@ -33,16 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $adminPageTitle = 'Change password';
 require_once __DIR__ . '/includes/header.php';
-require_once __DIR__ . '/includes/nav.php';
+inv_render_page_header([
+    'title' => 'Password',
+    'subtitle' => 'Update your admin password',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Change password</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
 
 <?php if ($error !== ''): ?>
     <p class="error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
