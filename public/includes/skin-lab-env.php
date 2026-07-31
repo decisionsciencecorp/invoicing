@@ -1,8 +1,9 @@
 <?php
 /**
- * Invoicing UI skins — same lab as Sanctum Tasks / CRM.
+ * Invoicing UI skins — same slugs / prefs model as Sanctum Tasks & CRM.
  * Slugs: hey, ledger, brutalist, obsidian.
- * Resolution: ?preview_skin= → user.skin_slug → config default_skin_slug → obsidian.
+ * Resolution: ?preview_skin= → user.skin_slug → config default_skin_slug → hey.
+ * Preference UI: Settings → Appearance (not a sticky SKIN bar).
  */
 declare(strict_types=1);
 
@@ -11,6 +12,17 @@ require_once __DIR__ . '/database.php';
 function invSkinAvailableSlugs(): array
 {
     return ['hey', 'ledger', 'brutalist', 'obsidian'];
+}
+
+/** Human labels — match Tasks Settings → Appearance. */
+function invSkinLabels(): array
+{
+    return [
+        'hey' => 'HEY Bold',
+        'ledger' => 'Ledger & Ink',
+        'brutalist' => 'Brutalist Signal',
+        'obsidian' => 'Obsidian Focus',
+    ];
 }
 
 function invSkinNormalizeSlug(?string $slug): ?string
@@ -23,9 +35,9 @@ function invSkinMasterSlug(): string
 {
     try {
         $raw = get_config('default_skin_slug');
-        return invSkinNormalizeSlug(is_string($raw) ? $raw : null) ?? 'obsidian';
+        return invSkinNormalizeSlug(is_string($raw) ? $raw : null) ?? 'hey';
     } catch (Throwable $e) {
-        return 'obsidian';
+        return 'hey';
     }
 }
 
@@ -67,8 +79,8 @@ function invSkinEffectiveSlug(?array $userRow = null): string
 
 function invSkinStylesheetHref(string $slug): string
 {
-    $slug = invSkinNormalizeSlug($slug) ?? 'obsidian';
-    return dsc_invoicing_href('assets/skins/' . $slug . '.css') . '?v=1';
+    $slug = invSkinNormalizeSlug($slug) ?? 'hey';
+    return dsc_invoicing_href('assets/skins/' . $slug . '.css') . '?v=2';
 }
 
 /** Light skins paint pale chrome; navbar-dark keeps a white hamburger → invisible. */
@@ -82,24 +94,29 @@ function invSkinBootstrapTheme(string $slug): string
     return $slug === 'obsidian' ? 'dark' : 'light';
 }
 
-/** Comp bar on dev.invoicing only (Tasks/CRM Skin Lab pattern). */
+/**
+ * Sticky SKIN bar is Tasks/CRM Skin Lab chrome — hard-off (Tasks: skinLabShouldShowCompBar).
+ * Preferences live under Settings → Appearance.
+ */
 function invSkinShouldShowCompBar(): bool
 {
-    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
-    $host = preg_replace('/:\d+$/', '', $host) ?? $host;
-    return $host === 'dev.invoicing.decisionsciencecorp.com'
-        || $host === '127.0.0.1'
-        || $host === 'localhost';
+    return false;
 }
 
-function invSkinSaveUserPreference(int $userId, string $slug): array
+function invSkinSaveUserPreference(int $userId, ?string $slug): array
 {
+    $db = getDbConnection();
+    dsc_invoicing_ensure_admin_users_skin_slug_column($db);
+    if ($slug === null || $slug === '') {
+        $st = $db->prepare('UPDATE admin_users SET skin_slug = NULL WHERE id = :id');
+        $st->bindValue(':id', $userId, SQLITE3_INTEGER);
+        $st->execute();
+        return ['success' => true, 'skin_slug' => null];
+    }
     $normalized = invSkinNormalizeSlug($slug);
     if ($normalized === null) {
         return ['success' => false, 'error' => 'Invalid skin'];
     }
-    $db = getDbConnection();
-    dsc_invoicing_ensure_admin_users_skin_slug_column($db);
     $st = $db->prepare('UPDATE admin_users SET skin_slug = :s WHERE id = :id');
     $st->bindValue(':s', $normalized, SQLITE3_TEXT);
     $st->bindValue(':id', $userId, SQLITE3_INTEGER);

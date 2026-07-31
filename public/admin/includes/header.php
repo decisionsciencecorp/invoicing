@@ -8,7 +8,7 @@ require_once __DIR__ . '/helpers.php';
 
 $adminPageTitle = $adminPageTitle ?? 'Admin';
 $invHideNav = !empty($invHideNav);
-$invCssVersion = '6';
+$invCssVersion = '7';
 $cssHref = dsc_invoicing_href('assets/css/invoicing.css') . '?v=' . $invCssVersion;
 $bsCssHref = dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3';
 $biCssHref = dsc_invoicing_href('assets/vendor/bootstrap-icons/font/bootstrap-icons.min.css') . '?v=1.11.3';
@@ -17,8 +17,6 @@ $invUserForSkin = (function_exists('isLoggedIn') && isLoggedIn() && function_exi
     ? getCurrentUser()
     : null;
 $invSkinSlug = invSkinEffectiveSlug(is_array($invUserForSkin) ? $invUserForSkin : null);
-$invShowSkinCompBar = invSkinShouldShowCompBar();
-$invSkinSlugs = invSkinAvailableSlugs();
 $invBsTheme = invSkinBootstrapTheme($invSkinSlug);
 $invNavLight = invSkinUsesLightNav($invSkinSlug);
 $GLOBALS['inv_skin_slug'] = $invSkinSlug;
@@ -33,34 +31,9 @@ $GLOBALS['inv_nav_light'] = $invNavLight;
     <link rel="stylesheet" href="<?= htmlspecialchars($bsCssHref, ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($biCssHref, ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($cssHref, ENT_QUOTES, 'UTF-8') ?>">
-    <?php if ($invShowSkinCompBar): ?>
-        <?php foreach ($invSkinSlugs as $slug): ?>
-    <link rel="stylesheet" href="<?= htmlspecialchars(invSkinStylesheetHref($slug), ENT_QUOTES, 'UTF-8') ?>">
-        <?php endforeach; ?>
-    <script src="<?= htmlspecialchars(dsc_invoicing_href('js/inv-skin-comp-switcher.js') . '?v=1', ENT_QUOTES, 'UTF-8') ?>"></script>
-    <?php else: ?>
     <link rel="stylesheet" href="<?= htmlspecialchars(invSkinStylesheetHref($invSkinSlug), ENT_QUOTES, 'UTF-8') ?>">
-    <?php endif; ?>
 </head>
-<body class="inv-app<?= $invShowSkinCompBar ? ' inv-skin-lab-active' : '' ?>">
-<?php if ($invShowSkinCompBar): ?>
-<div class="inv-skin-comp-bar" id="inv-skin-comp-bar" role="region" aria-label="Skin comp switcher (dev)">
-    <span class="inv-skin-comp-bar__label">SKIN</span>
-    <?php foreach ($invSkinSlugs as $slug): ?>
-        <button type="button" class="inv-skin-comp-bar__btn" data-skin-set="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>" aria-pressed="false"><?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?></button>
-    <?php endforeach; ?>
-    <span class="inv-skin-comp-bar__spacer"></span>
-    <span class="inv-skin-comp-bar__note">UI-Dev · invoicing</span>
-</div>
-<script>
-window.__INV_SKIN_LAB__ = {
-    slugs: <?= json_encode($invSkinSlugs, JSON_UNESCAPED_UNICODE) ?>,
-    defaultSlug: <?= json_encode($invSkinSlug, JSON_UNESCAPED_UNICODE) ?>,
-    saveUrl: <?= json_encode(dsc_invoicing_href('admin/save-skin.php'), JSON_UNESCAPED_UNICODE) ?>,
-    csrfToken: <?= json_encode(getCsrfToken(), JSON_UNESCAPED_UNICODE) ?>
-};
-</script>
-<?php endif; ?>
+<body class="inv-app">
 <?php if (!$invHideNav): ?>
     <?php require __DIR__ . '/nav.php'; ?>
 <?php endif; ?>

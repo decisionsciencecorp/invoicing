@@ -22,6 +22,14 @@ final class SkinLabTest extends TestCase
         $this->assertSame('light', invSkinBootstrapTheme('ledger'));
         $this->assertSame('dark', invSkinBootstrapTheme('obsidian'));
 
+        $this->assertFalse(invSkinShouldShowCompBar());
+        $this->assertSame('HEY Bold', invSkinLabels()['hey']);
+
+        // Clear site default → master falls back to hey (Tasks/CRM default).
+        $db = getDbConnection();
+        $db->exec("DELETE FROM config WHERE key = 'default_skin_slug'");
+        $this->assertSame('hey', invSkinMasterSlug());
+
         set_config('default_skin_slug', 'brutalist');
         $this->assertSame('brutalist', invSkinMasterSlug());
         $this->assertSame('brutalist', invSkinEffectiveSlug(null));
@@ -30,13 +38,16 @@ final class SkinLabTest extends TestCase
         $this->assertSame('hey', invSkinEffectiveSlug(null));
         unset($_GET['preview_skin']);
 
-        $db = getDbConnection();
         $uid = (int) $db->querySingle("SELECT id FROM admin_users WHERE username = 'admin'");
         $this->assertGreaterThan(0, $uid);
         $saved = invSkinSaveUserPreference($uid, 'ledger');
         $this->assertTrue($saved['success']);
         $row = ['skin_slug' => 'ledger'];
         $this->assertSame('ledger', invSkinEffectiveSlug($row));
+
+        $cleared = invSkinSaveUserPreference($uid, null);
+        $this->assertTrue($cleared['success']);
+        $this->assertNull($cleared['skin_slug']);
 
         $site = invSkinSaveSiteDefault('obsidian');
         $this->assertTrue($site['success']);

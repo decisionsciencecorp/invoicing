@@ -364,41 +364,13 @@ html[data-skin-comp="obsidian"] .crm-login-brand__subtitle,
 html[data-skin-comp="obsidian"] .crm-login-fineprint {
     color: var(--inv-text-muted);
 }
-
-/* Invoicing surfaces mapped onto skin tokens */
 html[data-skin-comp="obsidian"] .info-box,
-html[data-skin-comp="obsidian"] .surface,
-html[data-skin-comp="obsidian"] .inv-kpi,
-html[data-skin-comp="obsidian"] .inv-login-card,
-html[data-skin-comp="obsidian"] .pay-card,
-html[data-skin-comp="obsidian"] .filter-bar {
-  background: var(--inv-bg-surface) !important;
-  border-color: var(--inv-border-subtle) !important;
-  color: var(--inv-text-primary);
-  box-shadow: var(--inv-shadow-sm);
-  border-radius: var(--inv-radius);
-}
-html[data-skin-comp="obsidian"] .admin-nav {
-  background: var(--inv-bg-elevated) !important;
-  border-bottom-color: var(--inv-border-subtle) !important;
-}
-html[data-skin-comp="obsidian"] .tabbar a { color: var(--inv-text-muted); }
-html[data-skin-comp="obsidian"] .tabbar a.active {
-  color: var(--inv-text-primary);
-  border-bottom-color: var(--inv-accent);
-}
-html[data-skin-comp="obsidian"] .inv-app .btn-primary {
-  background: var(--inv-accent) !important;
-  border-color: var(--inv-accent) !important;
-  color: #fff !important;
-}
-html[data-skin-comp="obsidian"] .inv-app .form-control,
-html[data-skin-comp="obsidian"] .inv-app .form-select {
-  background-color: var(--inv-bg-input, var(--inv-bg-soft)) !important;
-  border-color: var(--inv-border-strong) !important;
-  color: var(--inv-text-primary) !important;
+html[data-skin-comp="obsidian"] .pay-card {
+    background: var(--inv-bg-surface) !important;
+    border-color: var(--inv-border-subtle) !important;
+    color: var(--inv-text-primary);
 }
 html[data-skin-comp="obsidian"] body.inv-app {
-  background: var(--inv-bg-app) !important;
-  color: var(--inv-text-primary) !important;
+    background: var(--inv-bg-app) !important;
+    color: var(--inv-text-primary) !important;
 }

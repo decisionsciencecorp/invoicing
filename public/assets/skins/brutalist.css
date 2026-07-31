@@ -365,40 +365,29 @@ html[data-skin-comp="brutalist"] .crm-login-fineprint {
     color: var(--inv-text-muted);
 }
 
-/* Invoicing surfaces mapped onto skin tokens */
+/* Invoicing light nav uses btn-outline-dark */
+html[data-skin-comp="brutalist"] .admin-nav .btn-outline-dark {
+    color: #000 !important;
+    border-color: #000 !important;
+    font-weight: 600;
+}
+html[data-skin-comp="brutalist"] .admin-nav .btn-outline-dark:hover,
+html[data-skin-comp="brutalist"] .admin-nav .btn-outline-dark.active {
+    background: var(--inv-accent) !important;
+    border-color: var(--inv-accent) !important;
+    color: #fff !important;
+}
+html[data-skin-comp="brutalist"] .admin-nav.navbar-light,
+html[data-skin-comp="brutalist"] .admin-nav.bg-light {
+    background: #fff !important;
+}
 html[data-skin-comp="brutalist"] .info-box,
-html[data-skin-comp="brutalist"] .surface,
-html[data-skin-comp="brutalist"] .inv-kpi,
-html[data-skin-comp="brutalist"] .inv-login-card,
-html[data-skin-comp="brutalist"] .pay-card,
-html[data-skin-comp="brutalist"] .filter-bar {
-  background: var(--inv-bg-surface) !important;
-  border-color: var(--inv-border-subtle) !important;
-  color: var(--inv-text-primary);
-  box-shadow: var(--inv-shadow-sm);
-  border-radius: var(--inv-radius);
-}
-html[data-skin-comp="brutalist"] .admin-nav {
-  background: var(--inv-bg-elevated) !important;
-  border-bottom-color: var(--inv-border-subtle) !important;
-}
-html[data-skin-comp="brutalist"] .tabbar a { color: var(--inv-text-muted); }
-html[data-skin-comp="brutalist"] .tabbar a.active {
-  color: var(--inv-text-primary);
-  border-bottom-color: var(--inv-accent);
-}
-html[data-skin-comp="brutalist"] .inv-app .btn-primary {
-  background: var(--inv-accent) !important;
-  border-color: var(--inv-accent) !important;
-  color: #fff !important;
-}
-html[data-skin-comp="brutalist"] .inv-app .form-control,
-html[data-skin-comp="brutalist"] .inv-app .form-select {
-  background-color: var(--inv-bg-input, var(--inv-bg-soft)) !important;
-  border-color: var(--inv-border-strong) !important;
-  color: var(--inv-text-primary) !important;
+html[data-skin-comp="brutalist"] .pay-card {
+    background: var(--inv-bg-surface) !important;
+    border-color: var(--inv-border-subtle) !important;
+    color: var(--inv-text-primary);
 }
 html[data-skin-comp="brutalist"] body.inv-app {
-  background: var(--inv-bg-app) !important;
-  color: var(--inv-text-primary) !important;
+    background: var(--inv-bg-app) !important;
+    color: var(--inv-text-primary) !important;
 }

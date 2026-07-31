@@ -9,32 +9,51 @@ requireAuth();
 $flash = '';
 $flashType = 'ok';
 $user = getCurrentUser();
+$labels = invSkinLabels();
+$slugs = invSkinAvailableSlugs();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'save_skin') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'save_appearance') {
     requireCsrfToken();
-    $mine = invSkinNormalizeSlug((string) ($_POST['skin_slug'] ?? ''));
-    $site = invSkinNormalizeSlug((string) ($_POST['default_skin_slug'] ?? ''));
-    if ($mine === null || $site === null) {
-        $flash = 'Pick a valid skin.';
-        $flashType = 'err';
+    $choice = (string) ($_POST['skin_choice'] ?? '');
+    $uid = (int) ($user['id'] ?? 0);
+    if ($choice === '__site__') {
+        $res = invSkinSaveUserPreference($uid, null);
     } else {
-        invSkinSaveUserPreference((int) ($user['id'] ?? 0), $mine);
-        invSkinSaveSiteDefault($site);
+        $res = invSkinSaveUserPreference($uid, $choice);
+    }
+    if (!empty($res['success'])) {
         $user = getCurrentUser();
         $flash = 'Appearance saved.';
         $flashType = 'ok';
+    } else {
+        $flash = (string) ($res['error'] ?? 'Could not save appearance.');
+        $flashType = 'err';
     }
 }
 
-$userSkin = invSkinUserOverrideSlug(is_array($user) ? $user : null) ?? invSkinMasterSlug();
-$defaultSkin = invSkinMasterSlug();
-$slugs = invSkinAvailableSlugs();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'save_site_default') {
+    requireCsrfToken();
+    $site = invSkinNormalizeSlug((string) ($_POST['default_skin_slug'] ?? ''));
+    if ($site === null) {
+        $flash = 'Pick a valid site default.';
+        $flashType = 'err';
+    } else {
+        invSkinSaveSiteDefault($site);
+        $flash = 'Site default theme saved.';
+        $flashType = 'ok';
+        $user = getCurrentUser();
+    }
+}
+
+$userOverride = invSkinUserOverrideSlug(is_array($user) ? $user : null);
+$siteDefault = invSkinMasterSlug();
+$effective = invSkinEffectiveSlug(is_array($user) ? $user : null);
 
 $adminPageTitle = 'Appearance';
 require_once __DIR__ . '/includes/header.php';
 inv_render_page_header([
     'title' => 'Appearance',
-    'subtitle' => 'UI skins shared with Tasks / CRM (hey, ledger, brutalist, obsidian)',
+    'subtitle' => 'How Invoicing looks for your account',
 ]);
 ?>
 
@@ -43,27 +62,52 @@ inv_render_page_header([
 <?php endif; ?>
 
 <div class="info-box">
+    <h2 class="h5 mt-0"><i class="bi bi-palette me-1" aria-hidden="true"></i> Appearance</h2>
     <p class="text-secondary">
-        Your skin applies when you are signed in. Site default applies on login and for users without a personal pick.
-        Preview any page with <code>?preview_skin=hey</code> (does not save).
-        On <strong>dev.invoicing</strong>, use the top SKIN bar to flip comps live.
+        Choose how DSC Invoicing looks for your account. The site default is
+        <strong><?= htmlspecialchars($labels[$siteDefault] ?? $siteDefault, ENT_QUOTES, 'UTF-8') ?></strong>
+        unless you pick a personal override below.
     </p>
-    <form method="POST" class="mt-3">
+    <form method="POST" style="max-width:32rem;">
         <?= csrfField() ?>
-        <input type="hidden" name="form" value="save_skin">
-        <label for="skin_slug">Your skin</label>
-        <select class="form-select" id="skin_slug" name="skin_slug">
+        <input type="hidden" name="form" value="save_appearance">
+        <label class="form-label">Skin preference</label>
+        <div class="d-flex flex-column gap-2 mb-3">
+            <label class="form-check">
+                <input class="form-check-input" type="radio" name="skin_choice" value="__site__"
+                    <?= $userOverride === null ? 'checked' : '' ?>>
+                <span class="form-check-label">Use site default (<?= htmlspecialchars($labels[$siteDefault] ?? $siteDefault, ENT_QUOTES, 'UTF-8') ?>)</span>
+            </label>
             <?php foreach ($slugs as $slug): ?>
-                <option value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>" <?= $userSkin === $slug ? 'selected' : '' ?>><?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?></option>
+                <label class="form-check">
+                    <input class="form-check-input" type="radio" name="skin_choice" value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>"
+                        <?= $userOverride === $slug ? 'checked' : '' ?>>
+                    <span class="form-check-label"><?= htmlspecialchars($labels[$slug] ?? $slug, ENT_QUOTES, 'UTF-8') ?></span>
+                </label>
             <?php endforeach; ?>
-        </select>
-        <label for="default_skin_slug">Site default</label>
+        </div>
+        <p class="text-secondary small">Currently active: <strong><?= htmlspecialchars($labels[$effective] ?? $effective, ENT_QUOTES, 'UTF-8') ?></strong></p>
+        <button type="submit" class="btn btn-primary">Save appearance</button>
+    </form>
+</div>
+
+<div class="info-box mt-3">
+    <h2 class="h5 mt-0"><i class="bi bi-sliders me-1" aria-hidden="true"></i> Site default</h2>
+    <p class="text-secondary">
+        Fallback theme for login and for accounts that use the site default (same role as CRM System settings → Theme).
+    </p>
+    <form method="POST" style="max-width:32rem;">
+        <?= csrfField() ?>
+        <input type="hidden" name="form" value="save_site_default">
+        <label class="form-label" for="default_skin_slug">Site default theme</label>
         <select class="form-select" id="default_skin_slug" name="default_skin_slug">
             <?php foreach ($slugs as $slug): ?>
-                <option value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>" <?= $defaultSkin === $slug ? 'selected' : '' ?>><?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?></option>
+                <option value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>" <?= $siteDefault === $slug ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($labels[$slug] ?? $slug, ENT_QUOTES, 'UTF-8') ?>
+                </option>
             <?php endforeach; ?>
         </select>
-        <button type="submit" class="btn btn-primary mt-3">Save appearance</button>
+        <button type="submit" class="btn btn-outline mt-3">Save site default</button>
     </form>
 </div>
 

@@ -39,7 +39,7 @@ cat > "$SMOKE/out/admin-fixture.html" <<HTML
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="http://127.0.0.1:${PORT}/assets/vendor/bootstrap/css/bootstrap.min.css?v=5.3.3">
 <link rel="stylesheet" href="http://127.0.0.1:${PORT}/assets/vendor/bootstrap-icons/font/bootstrap-icons.min.css?v=1.11.3">
-<link rel="stylesheet" href="http://127.0.0.1:${PORT}/assets/css/invoicing.css?v=6">
+<link rel="stylesheet" href="http://127.0.0.1:${PORT}/assets/css/invoicing.css?v=7">
 </head>
 <body class="inv-app">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">

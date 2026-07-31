@@ -159,44 +159,6 @@ body.inv-app {
   color: #000;
 }
 
-/* Skin Lab comp bar (dev) */
-.inv-skin-comp-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  background: #111;
-  color: #eee;
-  font-size: 0.75rem;
-  position: sticky;
-  top: 0;
-  z-index: 1100;
-  border-bottom: 1px solid #333;
-}
-.inv-skin-comp-bar__label {
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  margin-right: 0.35rem;
-}
-.inv-skin-comp-bar__btn {
-  border: 1px solid #555;
-  background: #222;
-  color: #ddd;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  text-transform: lowercase;
-}
-.inv-skin-comp-bar__btn.is-active {
-  background: #58a6ff;
-  border-color: #58a6ff;
-  color: #0d1117;
-  font-weight: 700;
-}
-.inv-skin-comp-bar__spacer { flex: 1; }
-.inv-skin-comp-bar__note { opacity: 0.55; }
-body.inv-skin-lab-active .admin-nav { top: var(--comp-h, 2rem); }
 .admin-nav .dropdown-menu {
   z-index: 1080;
   background: var(--inv-bg-elevated);
