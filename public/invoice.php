@@ -90,7 +90,7 @@ header('Link: <' . $canonical . '>; rel="canonical"');
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=2', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=3', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body class="inv-app">
 <main class="invoice-page">

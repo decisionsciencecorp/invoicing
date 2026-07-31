@@ -7,7 +7,7 @@ require_once __DIR__ . '/helpers.php';
 
 $adminPageTitle = $adminPageTitle ?? 'Admin';
 $invHideNav = !empty($invHideNav);
-$invCssVersion = '2';
+$invCssVersion = '3';
 $cssHref = dsc_invoicing_href('assets/css/invoicing.css') . '?v=' . $invCssVersion;
 ?>
 <!DOCTYPE html>

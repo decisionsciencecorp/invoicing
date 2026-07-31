@@ -431,6 +431,12 @@ code { font-family: var(--inv-mono); font-size: 0.85rem; }
   font-size: 0.875rem;
   margin-bottom: 1rem;
 }
+.inv-login-card input,
+.inv-login-card .form-control,
+.inv-login-card .btn {
+  max-width: none;
+  width: 100%;
+}
 
 /* ---------- Help ---------- */
 .inv-help-layout {
