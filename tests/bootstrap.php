@@ -79,10 +79,16 @@ function invoicing_test_default_square_mock(string $method, string $path, ?array
             ],
         ];
     }
-    if ($method === 'GET' && preg_match('#^/invoices/#', $path)) {
+    if ($method === 'GET' && preg_match('#^/invoices/[^/]+$#', $path)) {
         $id = 'inv:GET_' . $n;
         if (preg_match('#^/invoices/([^/]+)$#', $path, $m)) {
             $id = rawurldecode($m[1]);
+        }
+        $status = 'UNPAID';
+        if ($paid) {
+            $status = 'PAID';
+        } elseif (!empty($GLOBALS['_dsc_square_mock_canceled'])) {
+            $status = 'CANCELED';
         }
         return [
             'ok' => true,
@@ -91,7 +97,26 @@ function invoicing_test_default_square_mock(string $method, string $path, ?array
                 'invoice' => [
                     'id' => $id,
                     'version' => 2,
-                    'status' => $paid ? 'PAID' : 'UNPAID',
+                    'status' => $status,
+                    'public_url' => 'https://squareup.com/pay/' . rawurlencode($id),
+                ],
+            ],
+        ];
+    }
+    if ($method === 'POST' && preg_match('#^/invoices/.+/cancel$#', $path)) {
+        $id = 'inv:CANCEL_' . $n;
+        if (preg_match('#^/invoices/([^/]+)/cancel$#', $path, $m)) {
+            $id = rawurldecode($m[1]);
+        }
+        $GLOBALS['_dsc_square_mock_canceled'] = true;
+        return [
+            'ok' => true,
+            'status' => 200,
+            'data' => [
+                'invoice' => [
+                    'id' => $id,
+                    'version' => 3,
+                    'status' => 'CANCELED',
                     'public_url' => 'https://squareup.com/pay/' . rawurlencode($id),
                 ],
             ],

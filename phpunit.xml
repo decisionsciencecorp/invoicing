@@ -13,7 +13,7 @@
             <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
-    <coverage processUncoveredFiles="true">
+    <coverage processUncoveredFiles="false">
         <include>
             <directory suffix=".php">public/includes</directory>
             <directory suffix=".php">public/api/handlers</directory>

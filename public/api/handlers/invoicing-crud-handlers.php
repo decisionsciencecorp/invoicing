@@ -879,7 +879,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         }
         $db = getDbConnection();
         $r = $db->query(
-            'SELECT id, name, substr(api_key, 1, 8) || \'…\' AS api_key_prefix, created_at, last_used '
+            "SELECT id, key_name, substr(api_key, 1, 8) || '...' AS api_key_prefix, created_at, last_used "
             . 'FROM api_keys ORDER BY id DESC'
         );
         $rows = [];

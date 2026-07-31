@@ -31,9 +31,9 @@ inv_render_page_header([
     <nav class="surface surface-pad-sm" aria-label="Help topics">
         <ul class="inv-help-nav">
             <?php foreach ($sections as $key => $label): ?>
-                <li style="margin:0 0 .35rem;">
+                <li>
                     <a href="?section=<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>"
-                       style="text-decoration:none;<?= $section === $key ? 'font-weight:600;color:#e6edf3;' : 'color:#8b949e;' ?>">
+                       class="<?= $section === $key ? 'active' : '' ?>">
                         <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
                     </a>
                 </li>
