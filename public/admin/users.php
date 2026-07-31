@@ -146,7 +146,7 @@ require_once __DIR__ . '/includes/nav.php';
                     <th style="padding:0.4rem;">User</th>
                     <th style="padding:0.4rem;">Created</th>
                     <th style="padding:0.4rem;">Active</th>
-                    <th style="padding:0.4rem;">Set password</th>
+                    <th style="padding:0.4rem;">Reset password</th>
                     <th style="padding:0.4rem;"></th>
                 </tr>
             </thead>
@@ -166,12 +166,12 @@ require_once __DIR__ . '/includes/nav.php';
                         <td style="padding:0.35rem 0;"><?= htmlspecialchars(dsc_invoicing_format_date((string) ($u['created_at'] ?? '')), ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="padding:0.35rem 0;"><?= $active ? 'yes' : 'no' ?></td>
                         <td style="padding:0.35rem 0;">
-                            <form method="POST" style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;">
+                            <form method="POST" style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center;" autocomplete="off">
                                 <?= csrfField() ?>
                                 <input type="hidden" name="action" value="set_password">
                                 <input type="hidden" name="user_id" value="<?= $uid ?>">
-                                <input type="password" name="new_password" placeholder="New password" minlength="8" style="max-width:10rem;">
-                                <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Set</button>
+                                <input type="password" name="new_password" placeholder="New password" required minlength="8" autocomplete="new-password" style="max-width:10rem;">
+                                <button type="submit" class="btn btn-outline" style="padding:0.25rem 0.5rem;">Reset</button>
                             </form>
                         </td>
                         <td style="padding:0.35rem 0;text-align:right;">
