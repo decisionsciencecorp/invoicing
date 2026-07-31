@@ -12,10 +12,15 @@
 - After copying prod DB onto dev, remap Square customer IDs to sandbox before publishing test invoices.
 - Do not re-publish a month that already has a paid Square invoice.
 
-## Smoke (after sync)
+## Migrate + smoke (after sync)
 
 ```bash
+# On the host (or via deploy hook): idempotent schema ensure
+php tools/migrate.php
+
 curl -sS -o /dev/null -w '%{http_code}\n' https://dev.invoicing.decisionsciencecorp.com/admin/login.php
 curl -sS -o /dev/null -w '%{http_code}\n' https://dev.invoicing.decisionsciencecorp.com/api/health.php
+php tools/check_coverage.php
 BASE_URL=https://dev.invoicing.decisionsciencecorp.com node tools/design-smoke/smoke.mjs
+# or: tools/slice_quality_gate.sh --with-visual
 ```
