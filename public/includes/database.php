@@ -160,8 +160,54 @@ function initializeDatabase(): void {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_outbound_square_invoice ON outbound_invoices(square_invoice_id)');
     dsc_invoicing_ensure_engagement_work_stoppage_column($db);
     dsc_invoicing_ensure_engagement_flat_tier_columns($db);
+    dsc_invoicing_ensure_engagement_tasks_source_columns($db);
     dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
     dsc_invoicing_ensure_outbound_flat_tier_columns($db);
+    dsc_invoicing_ensure_audit_log_table($db);
+}
+
+/**
+ * Per-engagement Tasks accounting-doc source (generalizes PSF-only defaults).
+ */
+function dsc_invoicing_ensure_engagement_tasks_source_columns(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $cols = [];
+    $r = $db->query('PRAGMA table_info(engagements)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $cols[(string) ($row['name'] ?? '')] = true;
+    }
+    if (!isset($cols['tasks_project_id'])) {
+        $db->exec('ALTER TABLE engagements ADD COLUMN tasks_project_id INTEGER');
+    }
+    if (!isset($cols['tasks_directory_path'])) {
+        $db->exec("ALTER TABLE engagements ADD COLUMN tasks_directory_path TEXT");
+    }
+}
+
+function dsc_invoicing_ensure_audit_log_table(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            actor TEXT NOT NULL DEFAULT \'system\',
+            action TEXT NOT NULL,
+            entity_type TEXT,
+            entity_id TEXT,
+            detail TEXT,
+            level TEXT NOT NULL DEFAULT \'info\'
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at DESC)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action)');
 }
 
 /**

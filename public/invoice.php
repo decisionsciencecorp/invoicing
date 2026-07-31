@@ -22,6 +22,20 @@ if ($token === '') {
     exit;
 }
 
+// Liberal public rate limits (abuse brake, not harsh UX).
+require_once __DIR__ . '/includes/functions.php';
+$clientIp = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+$tokenBucket = substr(hash('sha256', $token), 0, 16);
+if (!checkRateLimit('public_invoice:ip:' . $clientIp, 180, 60)
+    || !checkRateLimit('public_invoice:tok:' . $tokenBucket . ':' . $clientIp, 90, 60)
+) {
+    http_response_code(429);
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Retry-After: 60');
+    echo 'Too many requests. Please try again in a minute.';
+    exit;
+}
+
 $db = getDbConnection();
 $row = dsc_billing_get_outbound_by_public_token($db, $token);
 if ($row === null) {

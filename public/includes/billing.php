@@ -1000,6 +1000,146 @@ function dsc_billing_backfill_psf_invoice_documents(SQLite3 $db): array {
     return ['ok' => true, 'updated' => $updated, 'errors' => $errors];
 }
 
+/**
+ * Cancel Square invoice component(s) for an outbound row and refresh local status.
+ *
+ * @return array{ok:bool, payment_status?:string, error?:string, canceled?:list<string>}
+ */
+function dsc_billing_cancel_outbound_invoice(SQLite3 $db, int $outboundId): array {
+    if ($outboundId <= 0) {
+        return ['ok' => false, 'error' => 'Invalid outbound invoice id.'];
+    }
+    $st = $db->prepare('SELECT * FROM outbound_invoices WHERE id = :id LIMIT 1');
+    $st->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+    $row = $st->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'error' => 'Outbound invoice not found.'];
+    }
+    $aggregate = strtolower(trim((string) ($row['payment_status'] ?? '')));
+    if ($aggregate === 'paid') {
+        return ['ok' => false, 'error' => 'Cannot cancel a paid invoice.'];
+    }
+    if ($aggregate === 'canceled') {
+        return ['ok' => true, 'payment_status' => 'canceled', 'canceled' => []];
+    }
+
+    $ids = [];
+    foreach (['square_retainer_invoice_id', 'square_overage_invoice_id', 'square_invoice_id'] as $col) {
+        $sid = trim((string) ($row[$col] ?? ''));
+        if ($sid !== '' && !in_array($sid, $ids, true)) {
+            $ids[] = $sid;
+        }
+    }
+    if ($ids === []) {
+        return ['ok' => false, 'error' => 'No Square invoice id on this row.'];
+    }
+
+    $canceled = [];
+    foreach ($ids as $sid) {
+        $got = dsc_billing_refresh_square_invoice_component($sid);
+        if (empty($got['ok'])) {
+            return ['ok' => false, 'error' => $got['error'] ?? ('Could not load Square invoice ' . $sid)];
+        }
+        $resp = dsc_invoicing_square_request('GET', '/invoices/' . rawurlencode($sid), null);
+        if (!$resp['ok']) {
+            return ['ok' => false, 'error' => 'Square retrieve failed: ' . ($resp['error'] ?? 'unknown')];
+        }
+        $inv = $resp['data']['invoice'] ?? null;
+        if (!is_array($inv)) {
+            return ['ok' => false, 'error' => 'Square retrieve returned no invoice.'];
+        }
+        $sqStatus = strtoupper((string) ($inv['status'] ?? ''));
+        if (in_array($sqStatus, ['CANCELED', 'PAID'], true)) {
+            continue;
+        }
+        $version = isset($inv['version']) ? (int) $inv['version'] : 0;
+        $cancel = dsc_invoicing_square_request(
+            'POST',
+            '/invoices/' . rawurlencode($sid) . '/cancel',
+            ['version' => $version]
+        );
+        if (!$cancel['ok']) {
+            return ['ok' => false, 'error' => 'Square cancel failed for ' . $sid . ': ' . ($cancel['error'] ?? 'unknown')];
+        }
+        $canceled[] = $sid;
+    }
+
+    $refresh = dsc_billing_refresh_outbound_payment_status($db, $outboundId);
+    if (empty($refresh['ok'])) {
+        // Still mark canceled locally if Square cancel succeeded
+        $up = $db->prepare(
+            'UPDATE outbound_invoices SET payment_status = \'canceled\', updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $up->bindValue(':id', $outboundId, SQLITE3_INTEGER);
+        $up->execute();
+        return ['ok' => true, 'payment_status' => 'canceled', 'canceled' => $canceled];
+    }
+
+    return [
+        'ok' => true,
+        'payment_status' => (string) ($refresh['payment_status'] ?? 'canceled'),
+        'canceled' => $canceled,
+    ];
+}
+
+/**
+ * Unpaid / aging AR rows (excludes paid + canceled).
+ *
+ * @return list<array<string,mixed>>
+ */
+function dsc_billing_list_unpaid_aging(SQLite3 $db): array {
+    $sql = 'SELECT o.*, e.name AS engagement_name, c.name AS company_name '
+        . 'FROM outbound_invoices o '
+        . 'JOIN engagements e ON e.id = o.engagement_id '
+        . 'JOIN companies c ON c.id = e.company_id '
+        . 'WHERE LOWER(COALESCE(o.payment_status, \'\')) NOT IN (\'paid\', \'canceled\') '
+        . 'ORDER BY o.anchor_month ASC, o.id ASC';
+    $r = $db->query($sql);
+    $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
+    $out = [];
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $dueRaw = trim((string) ($row['fee_due_date'] ?? ''));
+        if ($dueRaw === '') {
+            $dueRaw = trim((string) ($row['retainer_due_date'] ?? ''));
+        }
+        if ($dueRaw === '') {
+            $dueRaw = trim((string) ($row['overage_due_date'] ?? ''));
+        }
+        $daysPastDue = null;
+        $bucket = 'current';
+        if ($dueRaw !== '' && preg_match('/^\d{4}-\d{2}-\d{2}/', $dueRaw)) {
+            try {
+                $due = new DateTimeImmutable(substr($dueRaw, 0, 10), new DateTimeZone('UTC'));
+                if ($due > $today) {
+                    $daysPastDue = 0;
+                    $bucket = 'current';
+                } else {
+                    $daysPastDue = (int) $due->diff($today)->format('%a');
+                    if ($daysPastDue <= 30) {
+                        $bucket = '1-30';
+                    } elseif ($daysPastDue <= 60) {
+                        $bucket = '31-60';
+                    } elseif ($daysPastDue <= 90) {
+                        $bucket = '61-90';
+                    } else {
+                        $bucket = '90+';
+                    }
+                }
+            } catch (Throwable $e) {
+                $bucket = 'unknown';
+            }
+        } else {
+            $bucket = 'no_due_date';
+        }
+        $row['id'] = (int) $row['id'];
+        $row['due_date'] = $dueRaw;
+        $row['days_past_due'] = $daysPastDue;
+        $row['aging_bucket'] = $bucket;
+        $out[] = $row;
+    }
+    return $out;
+}
+
 /** Rewrite poisoned localhost client URLs from tokens + configured site origin. */
 function dsc_billing_repair_localhost_client_urls(SQLite3 $db): int {
     $fixed = 0;

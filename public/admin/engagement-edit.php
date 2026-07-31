@@ -18,6 +18,8 @@ $row = [
     'billing_mode' => 'hourly',
     'tier1_amount_cents' => 0,
     'tier2_amount_cents' => 0,
+    'tasks_project_id' => null,
+    'tasks_directory_path' => '',
 ];
 
 if ($id > 0) {
@@ -67,6 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? $_POST['status']
         : 'active';
     $sub = trim((string) ($_POST['square_subscription_id'] ?? ''));
+    $tasksProjectRaw = trim((string) ($_POST['tasks_project_id'] ?? ''));
+    $tasksProjectId = ($tasksProjectRaw !== '' && ctype_digit($tasksProjectRaw)) ? (int) $tasksProjectRaw : null;
+    $tasksDirectory = trim((string) ($_POST['tasks_directory_path'] ?? ''));
 
     if ($name === '') {
         $err = 'Engagement name is required.';
@@ -87,14 +92,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'UPDATE engagements SET company_id = :cid, name = :n, hourly_rate_cents = :r, '
                 . 'included_hours_per_month = :ih, status = :st, square_subscription_id = :sq, '
                 . 'billing_mode = :bm, tier1_amount_cents = :t1, tier2_amount_cents = :t2, '
+                . 'tasks_project_id = :tp, tasks_directory_path = :td, '
                 . 'updated_at = CURRENT_TIMESTAMP WHERE id = :id'
             );
             $up->bindValue(':id', $id, SQLITE3_INTEGER);
         } else {
             $up = $db->prepare(
                 'INSERT INTO engagements (company_id, name, hourly_rate_cents, included_hours_per_month, status, '
-                . 'square_subscription_id, billing_mode, tier1_amount_cents, tier2_amount_cents) '
-                . 'VALUES (:cid, :n, :r, :ih, :st, :sq, :bm, :t1, :t2)'
+                . 'square_subscription_id, billing_mode, tier1_amount_cents, tier2_amount_cents, '
+                . 'tasks_project_id, tasks_directory_path) '
+                . 'VALUES (:cid, :n, :r, :ih, :st, :sq, :bm, :t1, :t2, :tp, :td)'
             );
         }
         $up->bindValue(':cid', $companyId, SQLITE3_INTEGER);
@@ -106,6 +113,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $up->bindValue(':bm', $billingMode, SQLITE3_TEXT);
         $up->bindValue(':t1', $t1Cents, SQLITE3_INTEGER);
         $up->bindValue(':t2', $t2Cents, SQLITE3_INTEGER);
+        if ($tasksProjectId === null) {
+            $up->bindValue(':tp', null, SQLITE3_NULL);
+        } else {
+            $up->bindValue(':tp', $tasksProjectId, SQLITE3_INTEGER);
+        }
+        $up->bindValue(':td', $tasksDirectory, SQLITE3_TEXT);
         $up->execute();
 
         header('Location: ' . dsc_invoicing_href('admin/engagements.php?company_id=' . $companyId));
@@ -176,6 +189,19 @@ require_once __DIR__ . '/includes/nav.php';
         </select>
         <label for="square_subscription_id" style="margin-top:0.75rem;">Square subscription ID (optional)</label>
         <input type="text" id="square_subscription_id" name="square_subscription_id" value="<?= htmlspecialchars((string) ($row['square_subscription_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+
+        <h3 style="margin:1.25rem 0 0.5rem;font-size:1rem;">Tasks accounting docs (hourly publish picker)</h3>
+        <p style="color:#8b949e;font-size:.875rem;margin:0 0 .5rem;">
+            Leave blank to use the global default (ProSpikeFlow Work / <code>client-facing</code>).
+            Set a Tasks directory project id + folder to pull time logs for this engagement instead.
+        </p>
+        <label for="tasks_project_id">Tasks project id (optional)</label>
+        <input type="number" min="1" id="tasks_project_id" name="tasks_project_id"
+               value="<?= htmlspecialchars((string) (($row['tasks_project_id'] ?? '') !== '' && (int) ($row['tasks_project_id'] ?? 0) > 0 ? (int) $row['tasks_project_id'] : ''), ENT_QUOTES, 'UTF-8') ?>">
+        <label for="tasks_directory_path" style="margin-top:0.75rem;">Tasks directory path (optional)</label>
+        <input type="text" id="tasks_directory_path" name="tasks_directory_path" placeholder="client-facing"
+               value="<?= htmlspecialchars((string) ($row['tasks_directory_path'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+
         <button type="submit" class="btn" style="margin-top:1rem;">Save</button>
     </form>
 </div>

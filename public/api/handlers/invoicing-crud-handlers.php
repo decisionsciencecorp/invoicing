@@ -348,6 +348,8 @@ if (!function_exists('runInvoicingApiListCompanies')) {
             'billing_mode' => SQLITE3_TEXT,
             'tier1_amount_cents' => SQLITE3_INTEGER,
             'tier2_amount_cents' => SQLITE3_INTEGER,
+            'tasks_project_id' => SQLITE3_INTEGER,
+            'tasks_directory_path' => SQLITE3_TEXT,
         ];
         $updates = [];
         foreach ($allowed as $col => $typ) {
@@ -372,8 +374,13 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $up->bindValue(':id', $id, SQLITE3_INTEGER);
         foreach ($updates as $col => $typ) {
             $v = $data[$col];
-            if ($col === 'name' || $col === 'square_subscription_id' || $col === 'status' || $col === 'billing_mode') {
+            if ($col === 'name' || $col === 'square_subscription_id' || $col === 'status'
+                || $col === 'billing_mode' || $col === 'tasks_directory_path') {
                 $v = trim((string) $v);
+            }
+            if ($col === 'tasks_project_id' && ((int) $v) <= 0) {
+                $up->bindValue(':' . $col, null, SQLITE3_NULL);
+                continue;
             }
             $up->bindValue(':' . $col, $v, $typ);
         }
@@ -721,6 +728,186 @@ if (!function_exists('runInvoicingApiListCompanies')) {
                 'canonical_url' => $res['canonical_url'] ?? null,
             ],
         ];
+    }
+
+    function runInvoicingApiRefreshOutboundInvoice(?string $apiKey, string $clientIp, array $data): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:refresh_outbound:' . $apiKey . ':' . $clientIp, 60, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        $id = (int) ($data['outbound_id'] ?? $data['id'] ?? 0);
+        if ($id <= 0) {
+            return ['success' => false, 'code' => 400, 'error' => 'outbound_id required'];
+        }
+        require_once __DIR__ . '/../../includes/billing.php';
+        $res = dsc_billing_refresh_outbound_payment_status(getDbConnection(), $id);
+        if (empty($res['ok'])) {
+            return ['success' => false, 'code' => 400, 'error' => $res['error'] ?? 'Refresh failed'];
+        }
+        return [
+            'success' => true,
+            'code' => 200,
+            'data' => [
+                'outbound_id' => $id,
+                'payment_status' => $res['payment_status'] ?? null,
+                'public_url' => $res['public_url'] ?? null,
+            ],
+        ];
+    }
+
+    function runInvoicingApiAttachTasksDocument(?string $apiKey, string $clientIp, array $data): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:attach_tasks_doc:' . $apiKey . ':' . $clientIp, 30, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        $id = (int) ($data['outbound_id'] ?? $data['id'] ?? 0);
+        $docId = (int) ($data['tasks_document_id'] ?? 0);
+        if ($id <= 0 || $docId <= 0) {
+            return ['success' => false, 'code' => 400, 'error' => 'outbound_id and tasks_document_id required'];
+        }
+        require_once __DIR__ . '/../../includes/billing.php';
+        $db = getDbConnection();
+        dsc_billing_hydrate_legacy_outbound_row($db, $id);
+        $res = dsc_billing_attach_tasks_document_to_outbound($db, $id, $docId);
+        if (empty($res['ok'])) {
+            return ['success' => false, 'code' => 400, 'error' => $res['error'] ?? 'Attach failed'];
+        }
+        return [
+            'success' => true,
+            'code' => 200,
+            'data' => ['outbound_id' => $id, 'canonical_url' => $res['canonical_url'] ?? null],
+        ];
+    }
+
+    function runInvoicingApiCancelOutboundInvoice(?string $apiKey, string $clientIp, array $data): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:cancel_outbound:' . $apiKey . ':' . $clientIp, 20, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        $id = (int) ($data['outbound_id'] ?? $data['id'] ?? 0);
+        if ($id <= 0) {
+            return ['success' => false, 'code' => 400, 'error' => 'outbound_id required'];
+        }
+        require_once __DIR__ . '/../../includes/billing.php';
+        require_once __DIR__ . '/../../includes/audit.php';
+        $res = dsc_billing_cancel_outbound_invoice(getDbConnection(), $id);
+        if (empty($res['ok'])) {
+            return ['success' => false, 'code' => 400, 'error' => $res['error'] ?? 'Cancel failed'];
+        }
+        dsc_invoicing_audit_log(
+            'outbound.cancel',
+            'api',
+            'outbound_invoice',
+            (string) $id,
+            ['payment_status' => $res['payment_status'] ?? null, 'canceled' => $res['canceled'] ?? []]
+        );
+        return [
+            'success' => true,
+            'code' => 200,
+            'data' => [
+                'outbound_id' => $id,
+                'payment_status' => $res['payment_status'] ?? null,
+                'canceled_square_ids' => $res['canceled'] ?? [],
+            ],
+        ];
+    }
+
+    function runInvoicingApiListUnpaidAging(?string $apiKey, string $clientIp): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:list_unpaid:' . $apiKey . ':' . $clientIp, 60, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        require_once __DIR__ . '/../../includes/billing.php';
+        $rows = dsc_billing_list_unpaid_aging(getDbConnection());
+        return ['success' => true, 'code' => 200, 'data' => ['invoices' => $rows, 'count' => count($rows)]];
+    }
+
+    function runInvoicingApiListAuditLog(?string $apiKey, string $clientIp, int $limit, int $offset): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:list_audit:' . $apiKey . ':' . $clientIp, 60, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        require_once __DIR__ . '/../../includes/audit.php';
+        return [
+            'success' => true,
+            'code' => 200,
+            'data' => [
+                'entries' => dsc_invoicing_audit_log_list($limit, $offset),
+                'total' => dsc_invoicing_audit_log_count(),
+            ],
+        ];
+    }
+
+    function runInvoicingApiListConfig(?string $apiKey, string $clientIp): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:list_config:' . $apiKey . ':' . $clientIp, 30, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        $db = getDbConnection();
+        $r = $db->query('SELECT key, value FROM config ORDER BY key COLLATE NOCASE');
+        $rows = [];
+        $secretKeys = ['square_access_token', 'tasks_dsc_api_key', 'square_webhook_signature_key'];
+        while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+            $k = (string) ($row['key'] ?? '');
+            $v = (string) ($row['value'] ?? '');
+            if (in_array($k, $secretKeys, true) && $v !== '') {
+                $v = '••••' . substr($v, -4);
+            }
+            $rows[] = ['key' => $k, 'value' => $v];
+        }
+        return ['success' => true, 'code' => 200, 'data' => ['config' => $rows]];
+    }
+
+    function runInvoicingApiListApiKeysMeta(?string $apiKey, string $clientIp): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:list_keys:' . $apiKey . ':' . $clientIp, 30, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        $db = getDbConnection();
+        $r = $db->query(
+            'SELECT id, name, substr(api_key, 1, 8) || \'…\' AS api_key_prefix, created_at, last_used '
+            . 'FROM api_keys ORDER BY id DESC'
+        );
+        $rows = [];
+        while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+            $row['id'] = (int) $row['id'];
+            $rows[] = $row;
+        }
+        return ['success' => true, 'code' => 200, 'data' => ['api_keys' => $rows]];
+    }
+
+    function runInvoicingApiListAdminUsers(?string $apiKey, string $clientIp): array {
+        if (!$apiKey || !validateApiKey($apiKey)) {
+            return ['success' => false, 'code' => 401, 'error' => 'Invalid or missing API key'];
+        }
+        if (!checkRateLimit('inv_api:list_users:' . $apiKey . ':' . $clientIp, 30, 60)) {
+            return ['success' => false, 'code' => 429, 'error' => 'Rate limit exceeded'];
+        }
+        $db = getDbConnection();
+        $r = $db->query(
+            'SELECT id, username, is_active, created_at FROM admin_users ORDER BY username COLLATE NOCASE'
+        );
+        $rows = [];
+        while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+            $row['id'] = (int) $row['id'];
+            $row['is_active'] = (int) ($row['is_active'] ?? 0);
+            $rows[] = $row;
+        }
+        return ['success' => true, 'code' => 200, 'data' => ['users' => $rows]];
     }
 
 }

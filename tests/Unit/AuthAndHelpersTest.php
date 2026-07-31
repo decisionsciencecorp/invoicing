@@ -99,6 +99,16 @@ final class AuthAndHelpersTest extends TestCase
         $this->assertTrue(checkDatabaseHealth()['ok']);
     }
 
+    public function testSafeAdminReturn(): void
+    {
+        putenv('INVOICING_WEB_BASE');
+        $this->assertSame('/admin/index.php', dsc_invoicing_safe_admin_return(''));
+        $this->assertSame('/admin/invoices.php?tab=list', dsc_invoicing_safe_admin_return('/admin/invoices.php?tab=list'));
+        $this->assertSame('/admin/index.php', dsc_invoicing_safe_admin_return('https://evil.example/admin/invoices.php'));
+        $this->assertSame('/admin/index.php', dsc_invoicing_safe_admin_return('/admin/login.php'));
+        $this->assertSame('/admin/index.php', dsc_invoicing_safe_admin_return('../etc/passwd'));
+    }
+
     public function testMarkdownAndSquareConfigured(): void
     {
         $this->assertTrue(square_is_configured());

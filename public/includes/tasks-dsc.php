@@ -68,18 +68,71 @@ function dsc_tasks_psf_project_id(): int {
 }
 
 /**
- * Time-log / accounting documents for invoice picker (ProSpikeFlow client-facing folder).
+ * Default Tasks directory folder for accounting docs (overridable per engagement).
+ */
+function dsc_tasks_default_directory_path(): string {
+    if (function_exists('get_config')) {
+        $from = get_config('tasks_accounting_directory_path');
+        if (is_string($from) && trim($from) !== '') {
+            return trim($from);
+        }
+    }
+    $env = getenv('TASKS_ACCOUNTING_DIRECTORY_PATH');
+    if (is_string($env) && trim($env) !== '') {
+        return trim($env);
+    }
+    return 'client-facing';
+}
+
+/**
+ * Resolve Tasks project + directory for an engagement (falls back to global PSF defaults).
+ *
+ * @return array{project_id:int, directory_path:string}
+ */
+function dsc_tasks_source_for_engagement(SQLite3 $db, int $engagementId): array {
+    $projectId = dsc_tasks_psf_project_id();
+    $directory = dsc_tasks_default_directory_path();
+    if ($engagementId > 0) {
+        $st = $db->prepare(
+            'SELECT tasks_project_id, tasks_directory_path FROM engagements WHERE id = :id LIMIT 1'
+        );
+        $st->bindValue(':id', $engagementId, SQLITE3_INTEGER);
+        $row = $st->execute()->fetchArray(SQLITE3_ASSOC);
+        if (is_array($row)) {
+            if (isset($row['tasks_project_id']) && (int) $row['tasks_project_id'] > 0) {
+                $projectId = (int) $row['tasks_project_id'];
+            }
+            $dir = trim((string) ($row['tasks_directory_path'] ?? ''));
+            if ($dir !== '') {
+                $directory = $dir;
+            }
+        }
+    }
+    return ['project_id' => $projectId, 'directory_path' => $directory];
+}
+
+/**
+ * Time-log / accounting documents for invoice picker.
  *
  * @return list<array{id:int,title:string,directory_path:string}>
  */
-function dsc_tasks_list_accounting_documents(?int $projectId = null): array {
+function dsc_tasks_list_accounting_documents(?int $projectId = null, ?string $directoryPath = null): array {
     $projectId = $projectId ?? dsc_tasks_psf_project_id();
+    $directoryPath = $directoryPath ?? dsc_tasks_default_directory_path();
     $cfg = dsc_tasks_api_config();
     if ($cfg['base_url'] === '' || $cfg['api_key'] === '') {
         return [];
     }
     require_once __DIR__ . '/tasks-live-http.php';
-    return dsc_tasks_list_accounting_documents_live($projectId);
+    return dsc_tasks_list_accounting_documents_live($projectId, $directoryPath);
+}
+
+/**
+ * @return list<array{id:int,title:string,directory_path:string}>
+ */
+function dsc_tasks_list_accounting_documents_for_engagement(SQLite3 $db, int $engagementId): array {
+    $src = dsc_tasks_source_for_engagement($db, $engagementId);
+    return dsc_tasks_list_accounting_documents($src['project_id'], $src['directory_path']);
 }
 
 function dsc_tasks_admin_document_url(int $documentId): string {

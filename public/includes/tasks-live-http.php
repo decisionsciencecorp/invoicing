@@ -59,13 +59,17 @@ function dsc_tasks_fetch_document_live(int $documentId): array {
 /**
  * @return list<array{id:int,title:string,directory_path:string}>
  */
-function dsc_tasks_list_accounting_documents_live(int $projectId): array {
+function dsc_tasks_list_accounting_documents_live(int $projectId, ?string $directoryPath = null): array {
     $cfg = dsc_tasks_api_config();
     if ($cfg['base_url'] === '' || $cfg['api_key'] === '') {
         return [];
     }
+    $directoryPath = trim((string) ($directoryPath ?? 'client-facing'));
+    if ($directoryPath === '') {
+        $directoryPath = 'client-facing';
+    }
     $url = $cfg['base_url'] . '/api/list-documents.php?project_id=' . rawurlencode((string) $projectId)
-        . '&directory_path=' . rawurlencode('client-facing') . '&limit=200';
+        . '&directory_path=' . rawurlencode($directoryPath) . '&limit=200';
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,

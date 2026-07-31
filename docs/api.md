@@ -63,13 +63,31 @@ This file satisfies the Tasks “research checkpoint” + “`docs/api.md` refer
 |--------|------|--------|
 | GET | `list-outbound-invoices.php` | |
 | GET | `get-outbound-invoice.php?id=` | |
-| POST | `publish-combined-invoice.php` | Requires `tasks_document_id`; split retainer/overage Square invoices + canonical client URL |
+| POST | `publish-combined-invoice.php` | Hourly requires `tasks_document_id`; flat/tier uses optional doc + `tier_key` |
+| POST | `refresh-outbound-invoice.php` | Body: `outbound_id` — poll Square → local status |
+| POST | `attach-tasks-document.php` | Body: `outbound_id`, `tasks_document_id` |
+| POST | `cancel-outbound-invoice.php` | Body: `outbound_id` — cancel unpaid Square invoice(s) |
+| GET | `list-unpaid-aging.php` | AR rows with aging buckets |
+
+## Admin / ops (API key)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `list-audit-log.php` | Optional `limit`, `offset` |
+| GET | `list-config.php` | Secrets redacted |
+| GET | `list-api-keys.php` | Prefixes only |
+| GET | `list-admin-users.php` | No password hashes |
 
 ## Integrations
 
 | Method | Path | Notes |
 |--------|------|--------|
-| POST | `square-webhook.php` | Square webhook receiver (signature/validation per `includes/square.php`) — **not** generic CRUD |
+| POST | `square-webhook.php` | Square webhook receiver — invoice payment/update/cancel events refresh local status |
+
+## SDK / SMCP
+
+- Python: `invoicing_sdk/` (`InvoicingClient`)
+- SMCP CLI: `smcp_plugin/invoicing/cli.py`
 
 ---
 

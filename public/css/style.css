@@ -1,3 +1,20 @@
+:root {
+  --inv-bg: #0f1419;
+  --inv-surface: #161b22;
+  --inv-border: #30363d;
+  --inv-text: #e8eaed;
+  --inv-muted: #8b949e;
+  --inv-accent: #58a6ff;
+  --inv-link: #7cb3ff;
+  --inv-ok: #3fb950;
+  --inv-err: #f85149;
+  --inv-radius: 6px;
+  --inv-font: "IBM Plex Sans", "Source Sans 3", system-ui, sans-serif;
+  --inv-space-1: 0.35rem;
+  --inv-space-2: 0.75rem;
+  --inv-space-3: 1.25rem;
+}
+
 *,
 *::before,
 *::after {
@@ -6,19 +23,21 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: var(--inv-font);
   line-height: 1.5;
-  color: #e8eaed;
-  background: #0f1419;
+  color: var(--inv-text);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(88, 166, 255, 0.08), transparent 55%),
+    var(--inv-bg);
 }
 
 a {
-  color: #7cb3ff;
+  color: var(--inv-link);
 }
 
 .header {
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+  background: var(--inv-surface);
+  border-bottom: 1px solid var(--inv-border);
   padding: 1rem 1.25rem;
 }
 
