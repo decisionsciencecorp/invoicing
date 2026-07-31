@@ -41,17 +41,20 @@ function checkDatabaseHealth(): array {
 }
 
 /**
- * Schema bootstrap.
+ * Schema bootstrap — always idempotent (CREATE IF NOT EXISTS + guarded ADD COLUMN).
  *
- * @param bool $runColumnMigrations When true (CLI `tools/migrate.php`, PHPUnit),
- *        run ALTER TABLE ensure_* helpers for older DB files. Request/API paths
- *        must pass false — CREATE IF NOT EXISTS only (full current column set).
+ * Runs on every app entry (login, API, public invoice, CLI). No manual migrate
+ * step is required after deploy; older DB files self-heal on first use.
+ *
+ * @param bool $runColumnMigrations Deprecated — ignored. Kept so callers that
+ *        pass true/false keep working. Ensures always run once per process.
  */
 function initializeDatabase(bool $runColumnMigrations = true): void {
     static $created = false;
     static $migrated = false;
 
     $db = getDbConnection();
+    unset($runColumnMigrations); // BC param; schema ensure is always on.
 
     if (!$created) {
         $created = true;
@@ -195,11 +198,10 @@ function initializeDatabase(bool $runColumnMigrations = true): void {
             . 'WHERE public_token IS NOT NULL AND TRIM(public_token) != \'\''
         );
         dsc_invoicing_ensure_audit_log_table($db);
-        // Skin column must exist for Settings/Appearance even before full migrate.
         dsc_invoicing_ensure_admin_users_skin_slug_column($db);
     }
 
-    if ($runColumnMigrations && !$migrated) {
+    if (!$migrated) {
         $migrated = true;
         // Upgrade older DB files that predate columns baked into CREATE above.
         dsc_invoicing_ensure_admin_users_is_active_column($db);

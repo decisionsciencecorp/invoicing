@@ -18,7 +18,7 @@
 | Webhooks admin | — | Settings → Webhooks |
 | Playwright design smoke | Pattern | `tools/design-smoke/` (+ authenticated local runner) |
 | PHPUnit coverage | Present | `php tools/check_coverage.php` — **Lines ≥ 90%** |
-| Schema migrate | Deploy CLI | `php tools/migrate.php` — request path is CREATE-only (no ALTER) |
+| Schema migrate | Automatic | `initializeDatabase()` on login/API/public — idempotent ensures; optional `tools/migrate.php` |
 
 ## Follow-ups (not blockers for this pass)
 

@@ -5,7 +5,7 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/handlers/invoicing-crud-handlers.php';
 
-initializeDatabase(false);
+initializeDatabase();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonError('Method not allowed. Use GET.', 405);

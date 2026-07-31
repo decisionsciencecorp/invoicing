@@ -14,7 +14,7 @@
 
 ## Migrate + smoke (after sync)
 
-**Required after every deploy that may touch schema:** request paths no longer run `ALTER TABLE` helpers. New columns land via this CLI (or a fresh DB’s full `CREATE TABLE`).
+**Schema:** App entrypoints run idempotent `initializeDatabase()` (CREATE + guarded ADD COLUMN). No manual migrate required after deploy. Optional: `php tools/migrate.php` to warm a vhost DB before traffic.
 
 ```bash
 # On the host (or via deploy hook): idempotent schema ensure + column upgrades.

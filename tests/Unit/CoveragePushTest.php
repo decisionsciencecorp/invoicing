@@ -165,7 +165,7 @@ final class CoveragePushTest extends TestCase
         $this->assertSame('', dsc_invoicing_current_request_return());
         unset($_SERVER['REQUEST_URI']);
 
-        initializeDatabase(false);
+        initializeDatabase();
         $this->assertSame('5', (string) get_config('schema_version'));
     }
 }
