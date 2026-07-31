@@ -8,7 +8,7 @@ require_once __DIR__ . '/helpers.php';
 
 $adminPageTitle = $adminPageTitle ?? 'Admin';
 $invHideNav = !empty($invHideNav);
-$invCssVersion = '8';
+$invCssVersion = '9';
 $cssHref = dsc_invoicing_href('assets/css/invoicing.css') . '?v=' . $invCssVersion;
 $bsCssHref = dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3';
 $biCssHref = dsc_invoicing_href('assets/vendor/bootstrap-icons/font/bootstrap-icons.min.css') . '?v=1.11.3';

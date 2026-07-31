@@ -42,24 +42,35 @@
   --inv-status-canceled: #f85149;
   --inv-status-canceled-soft: #3d1515;
 
-  /* Align Bootstrap 5.3 dark tokens with invoicing shell */
+  /* Align Bootstrap 5.3 tokens with invoicing shell (skins override --inv-*) */
   --bs-body-bg: var(--inv-bg-app);
   --bs-body-color: var(--inv-text-primary);
   --bs-border-color: var(--inv-border-subtle);
   --bs-secondary-color: var(--inv-text-muted);
   --bs-tertiary-bg: var(--inv-bg-soft);
-  --bs-emphasis-color: #f0f3f6;
+  --bs-emphasis-color: var(--inv-text-primary);
   --bs-link-color: var(--inv-link);
   --bs-link-hover-color: var(--inv-accent-hover);
   --bs-form-control-bg: var(--inv-bg-input);
   --bs-body-font-family: var(--inv-font);
+  --bs-dropdown-bg: var(--inv-bg-elevated);
+  --bs-dropdown-color: var(--inv-text-primary);
+  --bs-dropdown-link-color: var(--inv-text-primary);
+  --bs-dropdown-link-hover-bg: var(--inv-accent-soft);
+  --bs-dropdown-link-hover-color: var(--inv-text-primary);
+  --bs-dropdown-link-active-bg: var(--inv-accent-soft);
+  --bs-dropdown-link-active-color: var(--inv-text-primary);
+  --bs-dropdown-border-color: var(--inv-border-subtle);
 }
 
 *,
 *::before,
 *::after { box-sizing: border-box; }
 
-html { color-scheme: dark; }
+/* Follow skin theme — forcing dark here made native buttons/selects black on Hey/Ledger. */
+html[data-bs-theme="light"] { color-scheme: light; }
+html[data-bs-theme="dark"],
+html:not([data-bs-theme]) { color-scheme: dark; }
 
 body.inv-app {
   margin: 0;
@@ -159,18 +170,33 @@ body.inv-app {
   color: #000;
 }
 
-.admin-nav .dropdown-menu {
+.admin-nav .dropdown-menu,
+.inv-app .dropdown-menu {
   z-index: 1080;
-  background: var(--inv-bg-elevated);
+  --bs-dropdown-bg: var(--inv-bg-elevated);
+  --bs-dropdown-color: var(--inv-text-primary);
+  --bs-dropdown-link-color: var(--inv-text-primary);
+  --bs-dropdown-link-hover-bg: var(--inv-accent-soft);
+  --bs-dropdown-link-hover-color: var(--inv-text-primary);
+  --bs-dropdown-border-color: var(--inv-border-subtle);
+  background: var(--inv-bg-elevated) !important;
+  color: var(--inv-text-primary) !important;
   border: 1px solid var(--inv-border-subtle);
 }
-.admin-nav .dropdown-item { color: var(--inv-text-primary); }
-.admin-nav .dropdown-item:hover,
-.admin-nav .dropdown-item:focus {
-  background: var(--inv-accent-soft);
-  color: var(--inv-text-primary);
+.admin-nav .dropdown-item,
+.inv-app .dropdown-item {
+  color: var(--inv-text-primary) !important;
+  background-color: transparent;
 }
-.admin-nav .dropdown-divider { border-color: var(--inv-border-subtle); }
+.admin-nav .dropdown-item:hover,
+.admin-nav .dropdown-item:focus,
+.inv-app .dropdown-item:hover,
+.inv-app .dropdown-item:focus {
+  background: var(--inv-accent-soft) !important;
+  color: var(--inv-text-primary) !important;
+}
+.admin-nav .dropdown-divider,
+.inv-app .dropdown-divider { border-color: var(--inv-border-subtle); }
 @media (min-width: 992px) {
   .admin-nav .inv-nav-cluster {
     gap: 0.35rem;
@@ -357,15 +383,15 @@ body.inv-app {
 .inv-app .form-control,
 .inv-app .form-select {
   max-width: 32rem;
-  background-color: var(--inv-bg-input);
-  border-color: var(--inv-border-strong);
-  color: var(--inv-text-primary);
+  background-color: var(--inv-bg-input) !important;
+  border-color: var(--inv-border-strong) !important;
+  color: var(--inv-text-primary) !important;
 }
 .inv-app .form-control:focus,
 .inv-app .form-select:focus {
-  background-color: var(--inv-bg-input);
-  border-color: var(--inv-accent);
-  color: var(--inv-text-primary);
+  background-color: var(--inv-bg-input) !important;
+  border-color: var(--inv-accent) !important;
+  color: var(--inv-text-primary) !important;
   box-shadow: 0 0 0 0.2rem var(--inv-accent-soft);
 }
 .inv-app .form-control::placeholder { color: var(--inv-text-muted); opacity: 1; }
@@ -375,13 +401,13 @@ body.inv-app {
 
 /* ---------- Buttons (legacy .btn + Bootstrap) ----------
  * Do not restyle Bootstrap outline/primary variants via bare `.btn` —
- * that fought btn-outline-light in the admin nav. */
+ * that fought btn-outline-light / btn-outline-dark in the admin nav. */
 .inv-app .btn-outline {
   display: inline-block;
   padding: 0.45rem 0.85rem;
   border-radius: var(--inv-radius-sm);
   border: 1px solid var(--inv-border-subtle);
-  background: transparent;
+  background: var(--inv-bg-surface);
   color: var(--inv-text-primary);
   cursor: pointer;
   font-size: 0.875rem;
@@ -392,34 +418,34 @@ body.inv-app {
   background: var(--inv-bg-soft);
   color: var(--inv-text-primary);
 }
-.inv-app .btn:not(.btn-outline-light):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle) {
-  background: var(--inv-bg-soft);
-  border-color: var(--inv-border-subtle);
+.inv-app .btn:not(.btn-outline-light):not(.btn-outline-dark):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle) {
+  background: var(--inv-bg-surface);
+  border: 1px solid var(--inv-border-subtle);
   color: var(--inv-text-primary);
 }
-.inv-app .btn:not(.btn-outline-light):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle):hover {
-  background: #30363d;
+.inv-app .btn:not(.btn-outline-light):not(.btn-outline-dark):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle):hover {
+  background: var(--inv-bg-soft);
   color: var(--inv-text-primary);
 }
 .inv-app .btn-primary {
-  --bs-btn-color: #0d1117;
+  --bs-btn-color: #fff;
   --bs-btn-bg: var(--inv-accent);
   --bs-btn-border-color: var(--inv-accent);
-  --bs-btn-hover-color: #0d1117;
+  --bs-btn-hover-color: #fff;
   --bs-btn-hover-bg: var(--inv-accent-hover);
   --bs-btn-hover-border-color: var(--inv-accent-hover);
-  --bs-btn-active-color: #0d1117;
+  --bs-btn-active-color: #fff;
   --bs-btn-active-bg: var(--inv-accent-hover);
   --bs-btn-active-border-color: var(--inv-accent-hover);
-  background: var(--inv-accent);
-  border-color: var(--inv-accent);
-  color: #0d1117;
+  background: var(--inv-accent) !important;
+  border-color: var(--inv-accent) !important;
+  color: #fff !important;
   font-weight: 600;
 }
 .inv-app .btn-primary:hover {
-  background: var(--inv-accent-hover);
-  border-color: var(--inv-accent-hover);
-  color: #0d1117;
+  background: var(--inv-accent-hover) !important;
+  border-color: var(--inv-accent-hover) !important;
+  color: #fff !important;
 }
 
 .nav-row {

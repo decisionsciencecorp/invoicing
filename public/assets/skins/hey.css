@@ -6,6 +6,7 @@ html[data-skin-comp="hey"] {
     --inv-bg-app: #e9edf3;
     --inv-bg-surface: #ffffff;
     --inv-bg-soft: #ffffff;
+    --inv-bg-input: #ffffff;
     --inv-bg-elevated: #ffffff;
     --inv-border-subtle: #000000;
     --inv-border-strong: #000000;
@@ -15,6 +16,7 @@ html[data-skin-comp="hey"] {
     --inv-accent: #0047ff;
     --inv-accent-soft: #e8f0ff;
     --inv-accent-hover: #0036cc;
+    --inv-link: #0047ff;
     --inv-shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.12);
     --inv-shadow-md: 3px 3px 0 rgba(0, 0, 0, 0.14);
     --inv-radius: 12px;
