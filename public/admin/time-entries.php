@@ -93,7 +93,7 @@ inv_render_page_header([
     <p class="error"><?= htmlspecialchars($err, ENT_QUOTES, 'UTF-8') ?></p>
 <?php endif; ?>
 
-<p style="color:#8b949e;">
+<p class="text-secondary mb-3">
     Filter:
     <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>">All recent</a>
     <?php if ($filterEngagementId > 0): ?>
@@ -103,12 +103,12 @@ inv_render_page_header([
 </p>
 
 <div class="info-box">
-    <h2 style="margin-top:0;">Log time</h2>
+    <h2 class="h5 mt-0">Log time</h2>
     <form method="POST">
         <?= csrfField() ?>
         <input type="hidden" name="form" value="add">
         <label for="engagement_id">Engagement</label>
-        <select id="engagement_id" name="engagement_id" required>
+        <select id="engagement_id" name="engagement_id" class="form-select" required>
             <option value="">— Select —</option>
             <?php foreach ($engChoices as $ec): ?>
                 <option value="<?= (int) $ec['id'] ?>" <?= $selectEngId === (int) $ec['id'] ? 'selected' : '' ?>>
@@ -117,39 +117,39 @@ inv_render_page_header([
             <?php endforeach; ?>
         </select>
         <label for="worked_date">Worked date</label>
-        <input type="date" id="worked_date" name="worked_date" required value="<?= htmlspecialchars((string) ($_POST['worked_date'] ?? gmdate('Y-m-d')), ENT_QUOTES, 'UTF-8') ?>">
+        <input class="form-control" type="date" id="worked_date" name="worked_date" required value="<?= htmlspecialchars((string) ($_POST['worked_date'] ?? gmdate('Y-m-d')), ENT_QUOTES, 'UTF-8') ?>">
         <label for="hours">Hours</label>
-        <input type="number" step="0.25" min="0.25" max="744" id="hours" name="hours" required value="<?= htmlspecialchars((string) ($_POST['hours'] ?? '1'), ENT_QUOTES, 'UTF-8') ?>">
+        <input class="form-control" type="number" step="0.25" min="0.25" max="744" id="hours" name="hours" required value="<?= htmlspecialchars((string) ($_POST['hours'] ?? '1'), ENT_QUOTES, 'UTF-8') ?>">
         <label for="memo">Memo</label>
-        <textarea id="memo" name="memo"><?= htmlspecialchars((string) ($_POST['memo'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
-        <p style="color:#8b949e;font-size:0.875rem;">Billing month is derived from worked date (UTC month).</p>
-        <button type="submit" class="btn">Save entry</button>
+        <textarea class="form-control" id="memo" name="memo"><?= htmlspecialchars((string) ($_POST['memo'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+        <p class="text-secondary small">Billing month is derived from worked date (UTC month).</p>
+        <button type="submit" class="btn btn-primary mt-2">Save entry</button>
     </form>
 </div>
 
-<div class="info-box" style="margin-top:1.5rem;">
-    <h2 style="margin-top:0;">Recent entries</h2>
+<div class="info-box mt-4">
+    <h2 class="h5 mt-0">Recent entries</h2>
     <?php if ($list === []): ?>
         <p>No entries yet.</p>
     <?php else: ?>
-        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+        <table class="inv-table">
             <thead>
-                <tr style="text-align:left;border-bottom:1px solid #30363d;">
-                    <th style="padding:0.35rem 0;">Date</th>
-                    <th style="padding:0.35rem 0;">Hours</th>
-                    <th style="padding:0.35rem 0;">Period</th>
-                    <th style="padding:0.35rem 0;">Company / engagement</th>
-                    <th style="padding:0.35rem 0;">Memo</th>
+                <tr>
+                    <th>Date</th>
+                    <th>Hours</th>
+                    <th>Period</th>
+                    <th>Company / engagement</th>
+                    <th>Memo</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($list as $t): ?>
-                    <tr style="border-bottom:1px solid #21262d;">
-                        <td style="padding:0.3rem 0;"><?= htmlspecialchars((string) $t['worked_date'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.3rem 0;"><?= htmlspecialchars((string) $t['hours'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.3rem 0;"><?= htmlspecialchars((string) $t['billing_period_month'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.3rem 0;"><?= htmlspecialchars((string) $t['company_name'], ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars((string) $t['engagement_name'], ENT_QUOTES, 'UTF-8') ?></td>
-                        <td style="padding:0.3rem 0;"><?= htmlspecialchars((string) $t['memo'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <tr>
+                        <td><?= htmlspecialchars((string) $t['worked_date'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) $t['hours'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) $t['billing_period_month'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) $t['company_name'], ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars((string) $t['engagement_name'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) $t['memo'], ENT_QUOTES, 'UTF-8') ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

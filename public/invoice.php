@@ -12,7 +12,7 @@ require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/billing.php';
 require_once __DIR__ . '/includes/markdown.php';
 
-initializeDatabase();
+initializeDatabase(false);
 
 $token = trim((string) ($_GET['t'] ?? ''));
 if ($token === '') {

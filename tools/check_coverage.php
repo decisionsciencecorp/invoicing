@@ -7,7 +7,7 @@
  */
 declare(strict_types=1);
 
-$min = 89.0;
+$min = 90.0;
 foreach ($argv as $arg) {
     if (str_starts_with($arg, '--min=')) {
         $min = (float) substr($arg, 6);

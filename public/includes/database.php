@@ -40,130 +40,174 @@ function checkDatabaseHealth(): array {
     }
 }
 
-function initializeDatabase(): void {
+/**
+ * Schema bootstrap.
+ *
+ * @param bool $runColumnMigrations When true (CLI `tools/migrate.php`, PHPUnit),
+ *        run ALTER TABLE ensure_* helpers for older DB files. Request/API paths
+ *        must pass false — CREATE IF NOT EXISTS only (full current column set).
+ */
+function initializeDatabase(bool $runColumnMigrations = true): void {
+    static $created = false;
+    static $migrated = false;
+
     $db = getDbConnection();
 
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS config (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    ");
+    if (!$created) {
+        $created = true;
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ");
 
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS admin_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
 
-    $r = $db->query("SELECT COUNT(*) as c FROM admin_users");
-    $row = $r->fetchArray(SQLITE3_ASSOC);
-    if ($row && (int) $row['c'] === 0) {
-        $bootstrap = getenv('INVOICING_INITIAL_ADMIN_PASSWORD');
-        $plain = ($bootstrap !== false && $bootstrap !== '')
-            ? (string) $bootstrap
-            : 'admin';
-        $hash = password_hash($plain, PASSWORD_BCRYPT, ['cost' => PASSWORD_COST]);
-        $stmt = $db->prepare("INSERT INTO admin_users (username, password_hash) VALUES ('admin', :h)");
-        $stmt->bindValue(':h', $hash, SQLITE3_TEXT);
-        $stmt->execute();
+        $r = $db->query("SELECT COUNT(*) as c FROM admin_users");
+        $row = $r->fetchArray(SQLITE3_ASSOC);
+        if ($row && (int) $row['c'] === 0) {
+            $bootstrap = getenv('INVOICING_INITIAL_ADMIN_PASSWORD');
+            $plain = ($bootstrap !== false && $bootstrap !== '')
+                ? (string) $bootstrap
+                : 'admin';
+            $hash = password_hash($plain, PASSWORD_BCRYPT, ['cost' => PASSWORD_COST]);
+            $stmt = $db->prepare("INSERT INTO admin_users (username, password_hash) VALUES ('admin', :h)");
+            $stmt->bindValue(':h', $hash, SQLITE3_TEXT);
+            $stmt->execute();
+        }
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key_name TEXT NOT NULL,
+                api_key TEXT UNIQUE NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_used DATETIME
+            )
+        ");
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS api_rate_limits (
+                rate_key TEXT PRIMARY KEY,
+                window_start INTEGER NOT NULL,
+                count INTEGER NOT NULL
+            )
+        ");
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS companies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                billing_email TEXT,
+                square_customer_id TEXT,
+                notes TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_name ON companies(name)');
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS engagements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                hourly_rate_cents INTEGER NOT NULL DEFAULT 10000,
+                included_hours_per_month INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'active',
+                square_subscription_id TEXT,
+                work_stoppage INTEGER NOT NULL DEFAULT 0,
+                billing_mode TEXT NOT NULL DEFAULT 'hourly',
+                tier1_amount_cents INTEGER NOT NULL DEFAULT 0,
+                tier2_amount_cents INTEGER NOT NULL DEFAULT 0,
+                tasks_project_id INTEGER,
+                tasks_directory_path TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $db->exec('CREATE INDEX IF NOT EXISTS idx_engagements_company ON engagements(company_id)');
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS time_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                engagement_id INTEGER NOT NULL REFERENCES engagements(id) ON DELETE CASCADE,
+                worked_date TEXT NOT NULL,
+                hours REAL NOT NULL,
+                memo TEXT,
+                billing_period_month TEXT NOT NULL,
+                invoiced_square_invoice_id TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $db->exec('CREATE INDEX IF NOT EXISTS idx_time_entries_engagement_period ON time_entries(engagement_id, billing_period_month)');
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS outbound_invoices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                engagement_id INTEGER NOT NULL REFERENCES engagements(id) ON DELETE CASCADE,
+                anchor_month TEXT NOT NULL,
+                overage_month TEXT NOT NULL,
+                retainer_amount_cents INTEGER NOT NULL DEFAULT 0,
+                overage_amount_cents INTEGER NOT NULL DEFAULT 0,
+                total_amount_cents INTEGER NOT NULL DEFAULT 0,
+                square_order_id TEXT,
+                square_invoice_id TEXT,
+                square_invoice_version INTEGER NOT NULL DEFAULT 0,
+                public_url TEXT,
+                delivery_method TEXT,
+                payment_status TEXT NOT NULL DEFAULT 'published',
+                public_token TEXT,
+                tasks_document_id INTEGER,
+                tasks_document_title TEXT,
+                accounting_markdown TEXT,
+                retainer_due_date TEXT,
+                overage_due_date TEXT,
+                square_retainer_invoice_id TEXT,
+                square_overage_invoice_id TEXT,
+                retainer_public_url TEXT,
+                overage_public_url TEXT,
+                retainer_payment_status TEXT,
+                overage_payment_status TEXT,
+                billing_mode TEXT,
+                tier_key TEXT,
+                fee_due_date TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        $db->exec(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbound_inv_eng_anchor ON outbound_invoices(engagement_id, anchor_month)'
+        );
+        $db->exec('CREATE INDEX IF NOT EXISTS idx_outbound_square_invoice ON outbound_invoices(square_invoice_id)');
+        $db->exec(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbound_public_token ON outbound_invoices(public_token) '
+            . 'WHERE public_token IS NOT NULL AND TRIM(public_token) != \'\''
+        );
+        dsc_invoicing_ensure_audit_log_table($db);
     }
 
-    dsc_invoicing_ensure_admin_users_is_active_column($db);
-
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS api_keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key_name TEXT NOT NULL,
-            api_key TEXT UNIQUE NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            last_used DATETIME
-        )
-    ");
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS api_rate_limits (
-            rate_key TEXT PRIMARY KEY,
-            window_start INTEGER NOT NULL,
-            count INTEGER NOT NULL
-        )
-    ");
-
-    // PRD §6 — idempotent scaffolding for next milestones
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS companies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            billing_email TEXT,
-            square_customer_id TEXT,
-            notes TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-    $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_name ON companies(name)');
-
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS engagements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            hourly_rate_cents INTEGER NOT NULL DEFAULT 10000,
-            included_hours_per_month INTEGER NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'active',
-            square_subscription_id TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-    $db->exec('CREATE INDEX IF NOT EXISTS idx_engagements_company ON engagements(company_id)');
-
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS time_entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            engagement_id INTEGER NOT NULL REFERENCES engagements(id) ON DELETE CASCADE,
-            worked_date TEXT NOT NULL,
-            hours REAL NOT NULL,
-            memo TEXT,
-            billing_period_month TEXT NOT NULL,
-            invoiced_square_invoice_id TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-    $db->exec('CREATE INDEX IF NOT EXISTS idx_time_entries_engagement_period ON time_entries(engagement_id, billing_period_month)');
-
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS outbound_invoices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            engagement_id INTEGER NOT NULL REFERENCES engagements(id) ON DELETE CASCADE,
-            anchor_month TEXT NOT NULL,
-            overage_month TEXT NOT NULL,
-            retainer_amount_cents INTEGER NOT NULL DEFAULT 0,
-            overage_amount_cents INTEGER NOT NULL DEFAULT 0,
-            total_amount_cents INTEGER NOT NULL DEFAULT 0,
-            square_order_id TEXT,
-            square_invoice_id TEXT,
-            square_invoice_version INTEGER NOT NULL DEFAULT 0,
-            public_url TEXT,
-            delivery_method TEXT,
-            payment_status TEXT NOT NULL DEFAULT 'published',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-    $db->exec(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbound_inv_eng_anchor ON outbound_invoices(engagement_id, anchor_month)'
-    );
-    $db->exec('CREATE INDEX IF NOT EXISTS idx_outbound_square_invoice ON outbound_invoices(square_invoice_id)');
-    dsc_invoicing_ensure_engagement_work_stoppage_column($db);
-    dsc_invoicing_ensure_engagement_flat_tier_columns($db);
-    dsc_invoicing_ensure_engagement_tasks_source_columns($db);
-    dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
-    dsc_invoicing_ensure_outbound_flat_tier_columns($db);
-    dsc_invoicing_ensure_audit_log_table($db);
+    if ($runColumnMigrations && !$migrated) {
+        $migrated = true;
+        // Upgrade older DB files that predate columns baked into CREATE above.
+        dsc_invoicing_ensure_admin_users_is_active_column($db);
+        dsc_invoicing_ensure_engagement_work_stoppage_column($db);
+        dsc_invoicing_ensure_engagement_flat_tier_columns($db);
+        dsc_invoicing_ensure_engagement_tasks_source_columns($db);
+        dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
+        dsc_invoicing_ensure_outbound_flat_tier_columns($db);
+        dsc_invoicing_ensure_audit_log_table($db);
+        set_config('schema_version', '4');
+    }
 }
 
 /**

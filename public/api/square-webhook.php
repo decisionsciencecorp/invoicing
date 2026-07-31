@@ -11,7 +11,7 @@ defined('DSC_INVOICING_SKIP_SESSION') || define('DSC_INVOICING_SKIP_SESSION', tr
 
 require_once __DIR__ . '/../includes/config.php';
 
-initializeDatabase();
+initializeDatabase(false);
 
 require_once __DIR__ . '/../includes/square.php';
 require_once __DIR__ . '/../includes/billing.php';

@@ -3,7 +3,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 
-initializeDatabase();
+initializeDatabase(false);
 
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']) && $_SESSION['user_id'] !== '';

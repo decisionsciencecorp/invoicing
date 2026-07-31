@@ -14,9 +14,16 @@
 
 ## Migrate + smoke (after sync)
 
+**Required after every deploy that may touch schema:** request paths no longer run `ALTER TABLE` helpers. New columns land via this CLI (or a fresh DB’s full `CREATE TABLE`).
+
 ```bash
-# On the host (or via deploy hook): idempotent schema ensure
-php tools/migrate.php
+# On the host (or via deploy hook): idempotent schema ensure + column upgrades.
+# Use the vhost DB — not the empty repo db/ stub under SRC_DIR.
+cd /root/repos/dev.invoicing.decisionsciencecorp.com   # or prod clone
+INVOICING_DB_PATH=/var/www/dev.invoicing.decisionsciencecorp.com/db/invoicing.db \
+  php tools/migrate.php
+# Prod example:
+# INVOICING_DB_PATH=/var/www/invoicing.decisionsciencecorp.com/db/invoicing.db php tools/migrate.php
 
 curl -sS -o /dev/null -w '%{http_code}\n' https://dev.invoicing.decisionsciencecorp.com/admin/login.php
 curl -sS -o /dev/null -w '%{http_code}\n' https://dev.invoicing.decisionsciencecorp.com/api/health.php

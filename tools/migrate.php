@@ -1,10 +1,11 @@
 #!/usr/bin/env php
 <?php
 /**
- * Idempotent schema migrate (ALTER/ensure helpers).
- * Run on deploy: php tools/migrate.php
- * Also invoked from initializeDatabase() so existing hosts keep self-healing
- * until deploy hooks call this explicitly.
+ * Idempotent schema migrate (CREATE + ALTER ensure_* helpers).
+ * Run on deploy after sync: php tools/migrate.php
+ *
+ * HTTP/API request paths call initializeDatabase(false) — CREATE only.
+ * Column ALTERs for older DB files run here (and in PHPUnit).
  */
 declare(strict_types=1);
 
@@ -12,6 +13,6 @@ $root = dirname(__DIR__);
 require_once $root . '/public/includes/config.php';
 require_once $root . '/public/includes/database.php';
 
-initializeDatabase();
+initializeDatabase(true);
 fwrite(STDOUT, "invoicing migrate: ok\n");
 exit(0);
