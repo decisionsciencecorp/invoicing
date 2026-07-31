@@ -80,15 +80,11 @@ if ($err !== '' && ($_POST['form'] ?? '') === 'add' && isset($_POST['engagement_
 
 $adminPageTitle = 'Time entries';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'Time entries',
+    'subtitle' => 'Local time capture',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Time entries</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
 
 <?php if (isset($_GET['saved'])): ?>
     <p class="success">Entry saved.</p>

@@ -13,15 +13,11 @@ $endpoint = dsc_invoicing_public_base_url() . dsc_invoicing_href('api/square-web
 
 $adminPageTitle = 'Webhooks';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'Webhooks',
+    'subtitle' => 'Square notification endpoint and subscribed events',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Webhooks</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
 
 <p style="color:#8b949e;">
     Square pushes invoice lifecycle events here so admin status stays fresh without waiting for a client to open their link.

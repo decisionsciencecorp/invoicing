@@ -103,6 +103,10 @@ $whSigStored = trim((string) (get_config('square_webhook_signature_key') ?? ''))
 
 $adminPageTitle = 'Square configuration';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'Square',
+    'subtitle' => 'Access token, location, webhook signature',
+]);
 ?>
 
 <div class="nav-row">

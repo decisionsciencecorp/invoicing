@@ -26,15 +26,11 @@ $keys = getAllApiKeys();
 
 $adminPageTitle = 'API keys';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'API keys',
+    'subtitle' => 'Keys for HTTP integrations and SMCP',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>API keys</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
 
 <p style="color:#8b949e;font-size:.875rem;">Keys authenticate JSON requests to <code>public/api/*.php</code> (header <code>X-API-Key</code>, <code>Authorization: Bearer</code>, or <code>?api_key=</code>).</p>
 

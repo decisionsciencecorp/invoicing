@@ -21,15 +21,11 @@ if (!isset($sections[$section])) {
 
 $adminPageTitle = 'Help';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'Help',
+    'subtitle' => 'Guides for publishing, API, and Square',
+]);
 ?>
-
-<div class="nav-row">
-    <h1>Help</h1>
-    <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>">
-        <?= csrfField() ?>
-        <button type="submit" class="btn">Logout</button>
-    </form>
-</div>
 
 <div class="inv-help-layout">
     <nav class="surface surface-pad-sm" aria-label="Help topics">

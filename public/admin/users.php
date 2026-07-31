@@ -109,6 +109,10 @@ while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
 
 $adminPageTitle = 'Admin users';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'Users',
+    'subtitle' => 'Admin accounts',
+]);
 ?>
 
 <div class="nav-row">

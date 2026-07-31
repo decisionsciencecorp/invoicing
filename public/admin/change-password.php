@@ -33,6 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $adminPageTitle = 'Change password';
 require_once __DIR__ . '/includes/header.php';
+inv_render_page_header([
+    'title' => 'Password',
+    'subtitle' => 'Update your admin password',
+]);
 ?>
 
 <div class="nav-row">
