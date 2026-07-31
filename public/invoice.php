@@ -31,6 +31,18 @@ if ($row === null) {
     exit;
 }
 
+// Keep client page honest after Square pay: refresh unpaid/partial rows on load.
+// Fail soft — show last known local status if Square is unreachable.
+if (dsc_billing_outbound_needs_payment_refresh($row)) {
+    $refresh = dsc_billing_refresh_outbound_payment_status($db, (int) ($row['id'] ?? 0));
+    if (!empty($refresh['ok'])) {
+        $reloaded = dsc_billing_get_outbound_by_public_token($db, $token);
+        if (is_array($reloaded)) {
+            $row = $reloaded;
+        }
+    }
+}
+
 $company = (string) ($row['company_name'] ?? '');
 $engagement = (string) ($row['engagement_name'] ?? '');
 $anchor = (string) ($row['anchor_month'] ?? '');

@@ -25,4 +25,32 @@ final class PublicTokenTest extends TestCase
         $this->assertNull(dsc_billing_get_outbound_by_public_token($db, 'not-a-token'));
         $this->assertNull(dsc_billing_get_outbound_by_public_token($db, 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'));
     }
+
+    public function testOutboundNeedsPaymentRefreshSkipsFullyPaid(): void
+    {
+        $this->assertFalse(dsc_billing_outbound_needs_payment_refresh([
+            'payment_status' => 'paid',
+            'retainer_payment_status' => 'paid',
+            'overage_amount_cents' => 0,
+        ]));
+        $this->assertTrue(dsc_billing_outbound_needs_payment_refresh([
+            'payment_status' => 'published',
+            'retainer_payment_status' => 'published',
+            'overage_amount_cents' => 0,
+        ]));
+        $this->assertTrue(dsc_billing_outbound_needs_payment_refresh([
+            'payment_status' => 'partial',
+            'retainer_payment_status' => 'paid',
+            'overage_amount_cents' => 10000,
+            'square_overage_invoice_id' => 'inv:overage',
+            'overage_payment_status' => 'published',
+        ]));
+        $this->assertFalse(dsc_billing_outbound_needs_payment_refresh([
+            'payment_status' => 'paid',
+            'retainer_payment_status' => 'paid',
+            'overage_amount_cents' => 10000,
+            'square_overage_invoice_id' => 'inv:overage',
+            'overage_payment_status' => 'paid',
+        ]));
+    }
 }

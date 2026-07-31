@@ -744,6 +744,31 @@ function dsc_billing_refresh_square_invoice_component(string $squareInvoiceId): 
 }
 
 /**
+ * Whether the client/admin should re-poll Square before trusting local status.
+ * Fully paid rows skip the network round-trip.
+ */
+function dsc_billing_outbound_needs_payment_refresh(array $row): bool {
+    $aggregate = strtolower(trim((string) ($row['payment_status'] ?? '')));
+    if ($aggregate === 'paid') {
+        return false;
+    }
+    $retainer = strtolower(trim((string) ($row['retainer_payment_status'] ?? $aggregate)));
+    if ($retainer !== '' && $retainer !== 'paid') {
+        return true;
+    }
+    $overageCents = (int) ($row['overage_amount_cents'] ?? 0);
+    $overageId = trim((string) ($row['square_overage_invoice_id'] ?? ''));
+    if ($overageCents > 0 && $overageId !== '') {
+        $overage = strtolower(trim((string) ($row['overage_payment_status'] ?? '')));
+        if ($overage !== 'paid') {
+            return true;
+        }
+    }
+    // Aggregate not paid (published / partial / unknown) → refresh.
+    return $aggregate !== 'paid';
+}
+
+/**
  * Poll Square for one outbound invoice row and refresh local payment status.
  *
  * @return array{ok:bool, payment_status?:string, public_url?:string, error?:string}
