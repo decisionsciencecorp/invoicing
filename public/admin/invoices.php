@@ -379,7 +379,7 @@ inv_render_page_header([
                                 <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>
                             </td>
                             <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
-                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;"><span class="<?= htmlspecialchars(inv_status_pill_class((string) $x['payment_status']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                             <td style="padding:0.35rem 0;">
                                 <form method="POST" style="display:inline;">
                                     <?= csrfField() ?>
@@ -460,7 +460,7 @@ inv_render_page_header([
                                     : 'Hourly' ?>
                             </td>
                             <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
-                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;"><span class="<?= htmlspecialchars(inv_status_pill_class((string) $x['payment_status']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                             <td style="padding:0.35rem 0;">
                                 <?php if ($isFlatRow): ?>
                                     <?php if ($clientUrl !== ''): ?>
