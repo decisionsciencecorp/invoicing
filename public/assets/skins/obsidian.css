@@ -1,0 +1,404 @@
+/* Invoicing Skin Lab — obsidian (ported from Docket / Tasks). */
+/* Obsidian Focus — OLED dark, warm cream type, gold accent + card glow */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap');
+
+html[data-skin-comp="obsidian"] {
+    --inv-bg-app: #0a0b0f;
+    --inv-bg-surface: #14161c;
+    --inv-bg-soft: #101218;
+    --inv-bg-input: #0d1117;
+    --inv-bg-elevated: #1a1d24;
+    --inv-border-subtle: rgba(242, 235, 227, 0.1);
+    --inv-border-strong: rgba(242, 235, 227, 0.2);
+    --inv-text-primary: #f2ebe3;
+    --inv-text-secondary: #cfc5b8;
+    --inv-text-muted: #8f877c;
+    --inv-accent: #e8a838;
+    --inv-accent-soft: rgba(232, 168, 56, 0.12);
+    --inv-accent-hover: #f0b84a;
+    --inv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55), 0 7px 18px rgba(0, 0, 0, 0.28);
+    --inv-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --inv-radius: 10px;
+    --inv-radius-sm: 8px;
+    --inv-status-todo-soft: rgba(242, 235, 227, 0.06);
+    --inv-status-doing-soft: rgba(232, 168, 56, 0.12);
+    --inv-status-done-soft: rgba(120, 180, 130, 0.12);
+    --inv-status-blocked-soft: rgba(200, 80, 80, 0.12);
+    --inv-pri-normal-soft: rgba(232, 168, 56, 0.1);
+}
+
+html[data-skin-comp="obsidian"] body {
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    background: var(--inv-bg-app) !important;
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] h1,
+html[data-skin-comp="obsidian"] .page-header__title h1,
+html[data-skin-comp="obsidian"] .page-header__title h1,
+html[data-skin-comp="obsidian"] .inv-kpi__title,
+html[data-skin-comp="obsidian"] .admin-nav .navbar-brand span {
+    font-family: "Crimson Pro", Georgia, serif;
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .page-header__title h1 {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-size: clamp(1.65rem, 3.5vw, 2.1rem);
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] table.table {
+    --bs-table-bg: var(--inv-bg-surface);
+    --bs-table-color: var(--inv-text-primary);
+    --bs-table-border-color: var(--inv-border-subtle);
+    --bs-table-striped-bg: var(--inv-bg-soft);
+    --bs-table-hover-bg: var(--inv-bg-elevated);
+}
+
+html[data-skin-comp="obsidian"] table.table thead th {
+    color: var(--inv-text-muted);
+}
+
+html[data-skin-comp="obsidian"] .page-header__title h1 {
+    font-size: clamp(1.65rem, 3.5vw, 2.1rem);
+}
+
+html[data-skin-comp="obsidian"] .section-title {
+    color: var(--inv-text-muted);
+    letter-spacing: 0.12em;
+}
+
+html[data-skin-comp="obsidian"] .surface,
+html[data-skin-comp="obsidian"] .inv-kpi,
+html[data-skin-comp="obsidian"] .swimlane,
+html[data-skin-comp="obsidian"] .filter-bar,
+html[data-skin-comp="obsidian"] .metadata-rail,
+html[data-skin-comp="obsidian"] .tabbar,
+html[data-skin-comp="obsidian"] .surface,
+html[data-skin-comp="obsidian"] .admin-breadcrumb,
+html[data-skin-comp="obsidian"] .inv-kpi,
+html[data-skin-comp="obsidian"] .activity-list li,
+html[data-skin-comp="obsidian"] .tabbar li {
+    background: var(--inv-bg-surface) !important;
+    border-color: var(--inv-border-subtle) !important;
+    color: var(--inv-text-primary);
+    box-shadow: var(--inv-shadow-sm);
+}
+
+html[data-skin-comp="obsidian"] .inv-kpi--interactive:hover,
+html[data-skin-comp="obsidian"] .inv-kpi:hover {
+    border-color: var(--inv-accent) !important;
+    box-shadow:
+        0 0 0 1px var(--inv-accent),
+        0 0 24px rgba(232, 168, 56, 0.22),
+        var(--inv-shadow-md);
+    color: inherit;
+}
+
+html[data-skin-comp="obsidian"] .swimlane {
+    background: var(--inv-bg-soft) !important;
+}
+
+html[data-skin-comp="obsidian"] .swimlane__header {
+    border-bottom-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .swimlane__count {
+    color: var(--inv-text-muted);
+    background: var(--inv-bg-elevated);
+    border: 1px solid var(--inv-border-subtle);
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+}
+
+html[data-skin-comp="obsidian"] .admin-nav {
+    background: #06070a !important;
+    border-bottom: 1px solid var(--inv-border-subtle);
+    box-shadow: none;
+}
+
+html[data-skin-comp="obsidian"] .admin-nav .btn-outline-light {
+    border-color: var(--inv-border-strong);
+    color: var(--inv-text-secondary) !important;
+}
+
+html[data-skin-comp="obsidian"] .admin-nav .btn-outline-light:hover {
+    background: var(--inv-accent-soft) !important;
+    border-color: var(--inv-accent);
+    color: var(--inv-text-primary) !important;
+}
+
+html[data-skin-comp="obsidian"] .admin-nav .navbar-text {
+    color: var(--inv-text-muted) !important;
+}
+
+html[data-skin-comp="obsidian"] .text-muted,
+html[data-skin-comp="obsidian"] .subtitle,
+html[data-skin-comp="obsidian"] .fine-print,
+html[data-skin-comp="obsidian"] .swimlane__empty,
+html[data-skin-comp="obsidian"] .inv-kpi__meta,
+html[data-skin-comp="obsidian"] .tabbar__item__meta {
+    color: var(--inv-text-muted) !important;
+}
+
+html[data-skin-comp="obsidian"] .inv-kpi__meta a,
+html[data-skin-comp="obsidian"] .admin-breadcrumb .breadcrumb-item a,
+html[data-skin-comp="obsidian"] .tabbar a.active,
+html[data-skin-comp="obsidian"] .tabbar__item__title:hover {
+    color: var(--inv-accent) !important;
+}
+
+html[data-skin-comp="obsidian"] .btn-primary {
+    background: var(--inv-accent);
+    border-color: var(--inv-accent);
+    color: #0a0b0f;
+    font-weight: 700;
+}
+
+html[data-skin-comp="obsidian"] .btn-primary:hover {
+    background: var(--inv-accent-hover);
+    border-color: var(--inv-accent-hover);
+    color: #0a0b0f;
+}
+
+html[data-skin-comp="obsidian"] .btn-outline-primary,
+html[data-skin-comp="obsidian"] .btn-outline-secondary {
+    border-color: var(--inv-border-strong);
+    color: var(--inv-text-secondary);
+}
+
+html[data-skin-comp="obsidian"] .btn-outline-primary:hover {
+    background: var(--inv-accent-soft);
+    border-color: var(--inv-accent);
+    color: var(--inv-accent);
+}
+
+html[data-skin-comp="obsidian"] .form-control,
+html[data-skin-comp="obsidian"] .form-select,
+html[data-skin-comp="obsidian"] .filter-bar .form-control,
+html[data-skin-comp="obsidian"] .filter-bar .form-select,
+html[data-skin-comp="obsidian"] .metadata-rail__row .form-control,
+html[data-skin-comp="obsidian"] .metadata-rail__row .form-select,
+html[data-skin-comp="obsidian"] .comment-composer textarea.form-control {
+    background: var(--inv-bg-soft);
+    border-color: var(--inv-border-subtle);
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .form-control:focus,
+html[data-skin-comp="obsidian"] .form-select:focus,
+html[data-skin-comp="obsidian"] .comment-composer textarea.form-control:focus {
+    background: var(--inv-bg-elevated);
+    border-color: var(--inv-accent);
+    box-shadow: 0 0 0 3px var(--inv-accent-soft);
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .form-control::placeholder {
+    color: var(--inv-text-muted);
+}
+
+html[data-skin-comp="obsidian"] .tabbar {
+    border-bottom-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .tabbar a {
+    color: var(--inv-text-muted);
+}
+
+html[data-skin-comp="obsidian"] .tabbar a:hover {
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .tabbar a.active {
+    color: var(--inv-accent);
+    border-bottom-color: var(--inv-accent);
+    font-family: "Crimson Pro", Georgia, serif;
+    font-weight: 600;
+}
+
+html[data-skin-comp="obsidian"] .status-pill::before {
+    box-shadow: 0 0 6px currentColor;
+}
+
+html[data-skin-comp="obsidian"] .status-pill--doing,
+html[data-skin-comp="obsidian"] .status-pill--in_progress {
+    color: var(--inv-accent);
+}
+
+html[data-skin-comp="obsidian"] .priority-chip {
+    background: var(--inv-bg-elevated);
+    border-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .priority-chip--normal {
+    color: var(--inv-accent);
+}
+
+html[data-skin-comp="obsidian"] .tabbar__item:hover {
+    background: var(--inv-bg-elevated);
+}
+
+html[data-skin-comp="obsidian"] .tabbar__item + .tabbar__item {
+    border-top-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .todo-checkbox {
+    border-color: var(--inv-border-strong);
+    background: var(--inv-bg-soft);
+}
+
+html[data-skin-comp="obsidian"] .todo-checkbox--done {
+    background: var(--inv-accent);
+    border-color: var(--inv-accent);
+    color: #0a0b0f;
+}
+
+html[data-skin-comp="obsidian"] .task-table thead th {
+    background: var(--inv-bg-soft);
+    color: var(--inv-text-muted);
+    border-bottom-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .task-table tbody td {
+    background: var(--inv-bg-surface);
+    border-bottom-color: var(--inv-border-subtle);
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .task-table tbody tr:hover td {
+    background: var(--inv-bg-elevated);
+}
+
+html[data-skin-comp="obsidian"] .task-table .page-header__title h1-cell a {
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .comment-item--mine .surface {
+    background: var(--inv-accent-soft) !important;
+    border-color: rgba(232, 168, 56, 0.35) !important;
+}
+
+html[data-skin-comp="obsidian"] .comment-body a,
+html[data-skin-comp="obsidian"] .markdown-body a {
+    color: var(--inv-accent);
+}
+
+html[data-skin-comp="obsidian"] .markdown-body code {
+    background: var(--inv-bg-soft);
+    border-color: var(--inv-border-subtle);
+    color: var(--inv-text-secondary);
+}
+
+html[data-skin-comp="obsidian"] .markdown-body blockquote {
+    background: var(--inv-bg-soft);
+    border-left-color: var(--inv-accent);
+    color: var(--inv-text-secondary);
+}
+
+html[data-skin-comp="obsidian"] .meta-chip {
+    background: var(--inv-bg-soft);
+    border-color: var(--inv-border-subtle);
+    color: var(--inv-text-secondary);
+}
+
+html[data-skin-comp="obsidian"] .meta-chip--link {
+    color: var(--inv-accent);
+}
+
+html[data-skin-comp="obsidian"] .admin-breadcrumb {
+    background: var(--inv-bg-surface);
+}
+
+html[data-skin-comp="obsidian"] .admin-breadcrumb .breadcrumb-item.active {
+    color: var(--inv-text-secondary);
+}
+
+html[data-skin-comp="obsidian"] .list-group-item {
+    background: var(--inv-bg-surface);
+    border-color: var(--inv-border-subtle);
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .list-group-item.st-notif-unread {
+    background: var(--inv-accent-soft);
+    border-left-color: var(--inv-accent);
+}
+
+html[data-skin-comp="obsidian"] .dropdown-menu {
+    background: var(--inv-bg-elevated);
+    border-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .dropdown-item {
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .dropdown-item:hover {
+    background: var(--inv-accent-soft);
+    color: var(--inv-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .dropdown-divider {
+    border-color: var(--inv-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .tabbar__icon {
+    background: var(--inv-bg-elevated);
+    border-color: var(--inv-border-subtle);
+    color: var(--inv-accent);
+}
+
+/* CRM login shell */
+html[data-skin-comp="obsidian"] .crm-login-card {
+    background: var(--inv-bg-surface) !important;
+    border-color: var(--inv-border-subtle) !important;
+    box-shadow: var(--inv-shadow-md);
+    color: var(--inv-text-primary);
+}
+html[data-skin-comp="obsidian"] .crm-login-brand__title {
+    color: var(--inv-text-primary);
+}
+html[data-skin-comp="obsidian"] .crm-login-brand__subtitle,
+html[data-skin-comp="obsidian"] .crm-login-fineprint {
+    color: var(--inv-text-muted);
+}
+
+/* Invoicing surfaces mapped onto skin tokens */
+html[data-skin-comp="obsidian"] .info-box,
+html[data-skin-comp="obsidian"] .surface,
+html[data-skin-comp="obsidian"] .inv-kpi,
+html[data-skin-comp="obsidian"] .inv-login-card,
+html[data-skin-comp="obsidian"] .pay-card,
+html[data-skin-comp="obsidian"] .filter-bar {
+  background: var(--inv-bg-surface) !important;
+  border-color: var(--inv-border-subtle) !important;
+  color: var(--inv-text-primary);
+  box-shadow: var(--inv-shadow-sm);
+  border-radius: var(--inv-radius);
+}
+html[data-skin-comp="obsidian"] .admin-nav {
+  background: var(--inv-bg-elevated) !important;
+  border-bottom-color: var(--inv-border-subtle) !important;
+}
+html[data-skin-comp="obsidian"] .tabbar a { color: var(--inv-text-muted); }
+html[data-skin-comp="obsidian"] .tabbar a.active {
+  color: var(--inv-text-primary);
+  border-bottom-color: var(--inv-accent);
+}
+html[data-skin-comp="obsidian"] .inv-app .btn-primary {
+  background: var(--inv-accent) !important;
+  border-color: var(--inv-accent) !important;
+  color: #fff !important;
+}
+html[data-skin-comp="obsidian"] .inv-app .form-control,
+html[data-skin-comp="obsidian"] .inv-app .form-select {
+  background-color: var(--inv-bg-input, var(--inv-bg-soft)) !important;
+  border-color: var(--inv-border-strong) !important;
+  color: var(--inv-text-primary) !important;
+}
+html[data-skin-comp="obsidian"] body.inv-app {
+  background: var(--inv-bg-app) !important;
+  color: var(--inv-text-primary) !important;
+}

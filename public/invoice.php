@@ -83,14 +83,20 @@ if ($feeDue === '' && $isFlat) {
 header('Content-Type: text/html; charset=utf-8');
 header('Link: <' . $canonical . '>; rel="canonical"');
 ?>
+<?php
+require_once __DIR__ . '/includes/skin-lab-env.php';
+$invSkinSlug = invSkinEffectiveSlug(null);
+$invBsTheme = invSkinBootstrapTheme($invSkinSlug);
+?>
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="<?= htmlspecialchars($invBsTheme, ENT_QUOTES, 'UTF-8') ?>" data-skin-comp="<?= htmlspecialchars($invSkinSlug, ENT_QUOTES, 'UTF-8') ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3', ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=4', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=5', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(invSkinStylesheetHref($invSkinSlug), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body class="inv-app">
 <main class="invoice-page">

@@ -93,7 +93,7 @@ body.inv-app {
   min-height: 2.75rem;
   position: relative;
   overflow: visible;
-  background: #161b22 !important;
+  background: var(--inv-bg-elevated) !important;
   border-bottom: 1px solid var(--inv-border-subtle);
 }
 .admin-nav .navbar-collapse,
@@ -108,6 +108,14 @@ body.inv-app {
   padding-top: 0.7rem;
   padding-bottom: 0.7rem;
 }
+.admin-nav .btn-outline-light,
+.admin-nav .btn-outline-dark {
+  font-weight: 500;
+  font-size: var(--inv-nav-fs);
+  line-height: 1.25;
+  padding: 0.32rem 0.7rem;
+  white-space: nowrap;
+}
 .admin-nav .btn-outline-light {
   --bs-btn-color: #fff;
   --bs-btn-border-color: rgba(255, 255, 255, 0.28);
@@ -120,24 +128,75 @@ body.inv-app {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.28);
   color: #fff;
-  font-weight: 500;
-  font-size: var(--inv-nav-fs);
-  line-height: 1.25;
-  padding: 0.32rem 0.7rem;
-  white-space: nowrap;
 }
 .admin-nav .btn-outline-light:hover,
-.admin-nav .btn-outline-light:focus {
+.admin-nav .btn-outline-light:focus,
+.admin-nav .btn-outline-light.active,
+.admin-nav .btn-outline-light:active {
   background-color: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.45);
   color: #fff;
 }
-.admin-nav .btn-outline-light.active,
-.admin-nav .btn-outline-light:active {
-  background-color: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.55);
-  color: #fff;
+.admin-nav .btn-outline-dark {
+  --bs-btn-color: #111;
+  --bs-btn-border-color: rgba(0, 0, 0, 0.35);
+  --bs-btn-hover-color: #000;
+  --bs-btn-hover-bg: rgba(0, 0, 0, 0.06);
+  --bs-btn-hover-border-color: rgba(0, 0, 0, 0.55);
+  --bs-btn-active-color: #000;
+  --bs-btn-active-bg: rgba(0, 0, 0, 0.1);
+  --bs-btn-active-border-color: rgba(0, 0, 0, 0.65);
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.35);
+  color: #111;
 }
+.admin-nav .btn-outline-dark:hover,
+.admin-nav .btn-outline-dark:focus,
+.admin-nav .btn-outline-dark.active,
+.admin-nav .btn-outline-dark:active {
+  background-color: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.55);
+  color: #000;
+}
+
+/* Skin Lab comp bar (dev) */
+.inv-skin-comp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background: #111;
+  color: #eee;
+  font-size: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  border-bottom: 1px solid #333;
+}
+.inv-skin-comp-bar__label {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-right: 0.35rem;
+}
+.inv-skin-comp-bar__btn {
+  border: 1px solid #555;
+  background: #222;
+  color: #ddd;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+.inv-skin-comp-bar__btn.is-active {
+  background: #58a6ff;
+  border-color: #58a6ff;
+  color: #0d1117;
+  font-weight: 700;
+}
+.inv-skin-comp-bar__spacer { flex: 1; }
+.inv-skin-comp-bar__note { opacity: 0.55; }
+body.inv-skin-lab-active .admin-nav { top: var(--comp-h, 2rem); }
 .admin-nav .dropdown-menu {
   z-index: 1080;
   background: var(--inv-bg-elevated);

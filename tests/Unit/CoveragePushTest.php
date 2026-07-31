@@ -166,6 +166,6 @@ final class CoveragePushTest extends TestCase
         unset($_SERVER['REQUEST_URI']);
 
         initializeDatabase(false);
-        $this->assertSame('4', (string) get_config('schema_version'));
+        $this->assertSame('5', (string) get_config('schema_version'));
     }
 }

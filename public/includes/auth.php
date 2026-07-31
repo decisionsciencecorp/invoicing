@@ -70,7 +70,7 @@ function getCurrentUser(): ?array {
     }
     $db = getDbConnection();
     $stmt = $db->prepare(
-        'SELECT id, username, created_at, is_active FROM admin_users WHERE id = :id'
+        'SELECT id, username, created_at, is_active, skin_slug FROM admin_users WHERE id = :id'
     );
     $stmt->bindValue(':id', $_SESSION['user_id'], SQLITE3_INTEGER);
     $r = $stmt->execute();

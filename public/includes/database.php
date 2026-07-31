@@ -68,6 +68,7 @@ function initializeDatabase(bool $runColumnMigrations = true): void {
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 is_active INTEGER NOT NULL DEFAULT 1,
+                skin_slug TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ");
@@ -194,19 +195,22 @@ function initializeDatabase(bool $runColumnMigrations = true): void {
             . 'WHERE public_token IS NOT NULL AND TRIM(public_token) != \'\''
         );
         dsc_invoicing_ensure_audit_log_table($db);
+        // Skin column must exist for Settings/Appearance even before full migrate.
+        dsc_invoicing_ensure_admin_users_skin_slug_column($db);
     }
 
     if ($runColumnMigrations && !$migrated) {
         $migrated = true;
         // Upgrade older DB files that predate columns baked into CREATE above.
         dsc_invoicing_ensure_admin_users_is_active_column($db);
+        dsc_invoicing_ensure_admin_users_skin_slug_column($db);
         dsc_invoicing_ensure_engagement_work_stoppage_column($db);
         dsc_invoicing_ensure_engagement_flat_tier_columns($db);
         dsc_invoicing_ensure_engagement_tasks_source_columns($db);
         dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
         dsc_invoicing_ensure_outbound_flat_tier_columns($db);
         dsc_invoicing_ensure_audit_log_table($db);
-        set_config('schema_version', '4');
+        set_config('schema_version', '5');
     }
 }
 
@@ -273,6 +277,25 @@ function dsc_invoicing_ensure_admin_users_is_active_column(SQLite3 $db): void {
     }
     if (!$has) {
         $db->exec('ALTER TABLE admin_users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+    }
+}
+
+function dsc_invoicing_ensure_admin_users_skin_slug_column(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $has = false;
+    $r = $db->query('PRAGMA table_info(admin_users)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        if (($row['name'] ?? '') === 'skin_slug') {
+            $has = true;
+            break;
+        }
+    }
+    if (!$has) {
+        $db->exec('ALTER TABLE admin_users ADD COLUMN skin_slug TEXT');
     }
 }
 
