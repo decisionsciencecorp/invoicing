@@ -11,8 +11,16 @@ When you publish a monthly invoice, attach the **Tasks accounting document** (ma
 
 | Component | Due |
 |-----------|-----|
-| Monthly retainer ($500 default) | Upon receipt (publish day, UTC) |
-| Prior-month overage | Net 30 from publish day |
+| Monthly retainer (hourly mode) | Upon receipt (publish day, UTC) |
+| Prior-month overage (hourly mode) | Net 30 from publish day |
+| Flat / tier program fee (`billing_mode=flat_tier`) | Net 30 from publish day (`fee_due_date`) |
+
+## Flat / tier publish
+
+1. Engagement must be `flat_tier` with Tier 1 / Tier 2 amounts set
+2. Admin → Invoices — pick engagement, anchor month, **tier** (default Tier 1)
+3. Tasks accounting document is **optional**
+4. Client page shows a single **program fee** card (not retainer/overage split)
 
 ## Admin flow
 

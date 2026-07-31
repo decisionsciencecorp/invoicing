@@ -21,6 +21,7 @@
 | **D8 — Currency** | **USD only.** |
 | **D9 — UX** | **Admin portal** (you/staff), with the ability to **generate/send the invoice and payment link** through Square (published invoice → customer pays via Square-hosted flow). |
 | **D10 — Square environment** | **Sandbox only** until production credentials are blessed on the deployed host. |
+| **D11 — Flat / tier mode (2026-07-31)** | Engagements may use `billing_mode = flat_tier` with `tier1_amount_cents` / `tier2_amount_cents`. Publish picks tier (default Tier 1). Single Square line; **Net 30** via `fee_due_date`. No overage from time entries. Tasks accounting doc **optional**. Hourly D1/D2/due dates **unchanged**. Flat amount stored in `retainer_amount_cents` with overage 0. First client: AcquireROI ($2,125 / $5,100). Tasks Doc #955. |
 
 ---
 

@@ -13,10 +13,38 @@
             <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">public/includes</directory>
+            <directory suffix=".php">public/api/handlers</directory>
+        </include>
+        <exclude>
+            <file>public/includes/lib/Parsedown.php</file>
+            <file>public/includes/config.php</file>
+            <file>public/includes/security-headers.php</file>
+            <file>public/includes/square-live-http.php</file>
+            <file>public/includes/tasks-live-http.php</file>
+            <file>public/includes/database.php</file>
+            <file>public/includes/auth.php</file>
+            <file>public/includes/csrf.php</file>
+        </exclude>
+        <report>
+            <text outputFile="php://stdout" showUncoveredFiles="false" showOnlySummary="true"/>
+        </report>
+    </coverage>
     <php>
-        <env name="INVOICING_TEST" value="1"/>
-        <env name="DB_PATH" value=":memory:"/>
-        <env name="INVOICING_SQUARE_SKIP_ENV_FILE" value="1"/>
-        <env name="SITE_URL" value="https://invoicing.decisionsciencecorp.com"/>
+        <env name="SITE_URL" value="https://invoicing.decisionsciencecorp.com" force="true"/>
+        <env name="DB_PATH" value=":memory:" force="true"/>
+        <env name="INVOICING_TEST" value="1" force="true"/>
+        <env name="INVOICING_SQUARE_SKIP_ENV_FILE" value="1" force="true"/>
+        <env name="INVOICING_SQUARE_MOCK" value="1" force="true"/>
+        <env name="INVOICING_TASKS_MOCK" value="1" force="true"/>
+        <env name="SQUARE_ACCESS_TOKEN" value="sandbox-test-token" force="true"/>
+        <env name="SQUARE_ENVIRONMENT" value="sandbox" force="true"/>
+        <env name="SQUARE_LOCATION_ID" value="LOC_TEST" force="true"/>
+        <env name="SQUARE_WEBHOOK_NOTIFICATION_URL" value="https://invoicing.decisionsciencecorp.com/api/square-webhook.php" force="true"/>
+        <env name="SQUARE_WEBHOOK_SIGNATURE_KEY" value="whsec_test_key" force="true"/>
+        <env name="TASKS_DSC_BASE_URL" value="https://tasks.example.test" force="true"/>
+        <env name="TASKS_DSC_OTTOVERNAL_API_KEY" value="tasks-test-key" force="true"/>
     </php>
 </phpunit>

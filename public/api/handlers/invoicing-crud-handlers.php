@@ -189,7 +189,11 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         if ($companyId !== null && $companyId > 0) {
             $st = $db->prepare(
                 'SELECT id, company_id, name, hourly_rate_cents, included_hours_per_month, status, '
-                . 'square_subscription_id, work_stoppage, created_at, updated_at '
+                . 'square_subscription_id, work_stoppage, '
+                . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
+                . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
+                . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+                . 'created_at, updated_at '
                 . 'FROM engagements WHERE company_id = :c ORDER BY name COLLATE NOCASE'
             );
             $st->bindValue(':c', $companyId, SQLITE3_INTEGER);
@@ -197,7 +201,11 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         } else {
             $r = $db->query(
                 'SELECT id, company_id, name, hourly_rate_cents, included_hours_per_month, status, '
-                . 'square_subscription_id, work_stoppage, created_at, updated_at '
+                . 'square_subscription_id, work_stoppage, '
+                . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
+                . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
+                . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+                . 'created_at, updated_at '
                 . 'FROM engagements ORDER BY company_id, name COLLATE NOCASE'
             );
         }
@@ -208,6 +216,8 @@ if (!function_exists('runInvoicingApiListCompanies')) {
             $row['hourly_rate_cents'] = (int) $row['hourly_rate_cents'];
             $row['included_hours_per_month'] = (int) $row['included_hours_per_month'];
             $row['work_stoppage'] = (int) $row['work_stoppage'];
+            $row['tier1_amount_cents'] = (int) $row['tier1_amount_cents'];
+            $row['tier2_amount_cents'] = (int) $row['tier2_amount_cents'];
             $rows[] = $row;
         }
 
@@ -227,7 +237,11 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $db = getDbConnection();
         $st = $db->prepare(
             'SELECT id, company_id, name, hourly_rate_cents, included_hours_per_month, status, '
-            . 'square_subscription_id, work_stoppage, created_at, updated_at '
+            . 'square_subscription_id, work_stoppage, '
+            . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
+            . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
+            . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+            . 'created_at, updated_at '
             . 'FROM engagements WHERE id = :id'
         );
         $st->bindValue(':id', $engagementId, SQLITE3_INTEGER);
@@ -240,6 +254,8 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $row['hourly_rate_cents'] = (int) $row['hourly_rate_cents'];
         $row['included_hours_per_month'] = (int) $row['included_hours_per_month'];
         $row['work_stoppage'] = (int) $row['work_stoppage'];
+        $row['tier1_amount_cents'] = (int) $row['tier1_amount_cents'];
+        $row['tier2_amount_cents'] = (int) $row['tier2_amount_cents'];
 
         return ['success' => true, 'code' => 200, 'data' => ['engagement' => $row]];
     }
@@ -271,9 +287,16 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         if ($status === '') {
             $status = 'active';
         }
+        $billingMode = trim((string) ($data['billing_mode'] ?? 'hourly'));
+        if ($billingMode !== 'flat_tier') {
+            $billingMode = 'hourly';
+        }
+        $t1 = isset($data['tier1_amount_cents']) ? (int) $data['tier1_amount_cents'] : 0;
+        $t2 = isset($data['tier2_amount_cents']) ? (int) $data['tier2_amount_cents'] : 0;
         $ins = $db->prepare(
-            'INSERT INTO engagements (company_id, name, hourly_rate_cents, included_hours_per_month, status, square_subscription_id) '
-            . 'VALUES (:c, :n, :h, :i, :s, :q)'
+            'INSERT INTO engagements (company_id, name, hourly_rate_cents, included_hours_per_month, status, '
+            . 'square_subscription_id, billing_mode, tier1_amount_cents, tier2_amount_cents) '
+            . 'VALUES (:c, :n, :h, :i, :s, :q, :bm, :t1, :t2)'
         );
         $ins->bindValue(':c', $companyId, SQLITE3_INTEGER);
         $ins->bindValue(':n', $name, SQLITE3_TEXT);
@@ -281,6 +304,9 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $ins->bindValue(':i', $included, SQLITE3_INTEGER);
         $ins->bindValue(':s', $status, SQLITE3_TEXT);
         $ins->bindValue(':q', trim((string) ($data['square_subscription_id'] ?? '')), SQLITE3_TEXT);
+        $ins->bindValue(':bm', $billingMode, SQLITE3_TEXT);
+        $ins->bindValue(':t1', $t1, SQLITE3_INTEGER);
+        $ins->bindValue(':t2', $t2, SQLITE3_INTEGER);
         $ins->execute();
         $id = (int) $db->lastInsertRowID();
 
@@ -319,6 +345,9 @@ if (!function_exists('runInvoicingApiListCompanies')) {
             'status' => SQLITE3_TEXT,
             'square_subscription_id' => SQLITE3_TEXT,
             'work_stoppage' => SQLITE3_INTEGER,
+            'billing_mode' => SQLITE3_TEXT,
+            'tier1_amount_cents' => SQLITE3_INTEGER,
+            'tier2_amount_cents' => SQLITE3_INTEGER,
         ];
         $updates = [];
         foreach ($allowed as $col => $typ) {
@@ -328,6 +357,10 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         }
         if ($updates === []) {
             return ['success' => false, 'code' => 400, 'error' => 'No fields to update'];
+        }
+        if (isset($data['billing_mode'])) {
+            $bm = trim((string) $data['billing_mode']);
+            $data['billing_mode'] = $bm === 'flat_tier' ? 'flat_tier' : 'hourly';
         }
         $sets = [];
         foreach ($updates as $col => $typ) {
@@ -339,13 +372,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $up->bindValue(':id', $id, SQLITE3_INTEGER);
         foreach ($updates as $col => $typ) {
             $v = $data[$col];
-            if ($col === 'name') {
-                $v = trim((string) $v);
-            }
-            if ($col === 'square_subscription_id') {
-                $v = trim((string) $v);
-            }
-            if ($col === 'status') {
+            if ($col === 'name' || $col === 'square_subscription_id' || $col === 'status' || $col === 'billing_mode') {
                 $v = trim((string) $v);
             }
             $up->bindValue(':' . $col, $v, $typ);
@@ -657,15 +684,26 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $engId = (int) ($data['engagement_id'] ?? 0);
         $anchor = trim((string) ($data['anchor_month'] ?? ''));
         $tasksDocId = (int) ($data['tasks_document_id'] ?? 0);
+        $tierKey = isset($data['tier_key']) ? trim((string) $data['tier_key']) : null;
         if ($engId <= 0 || !preg_match('/^\d{4}-\d{2}$/', $anchor)) {
             return ['success' => false, 'code' => 400, 'error' => 'engagement_id and anchor_month (YYYY-MM) required'];
         }
-        if ($tasksDocId <= 0) {
-            return ['success' => false, 'code' => 400, 'error' => 'tasks_document_id is required'];
-        }
         require_once __DIR__ . '/../../includes/billing.php';
         $db = getDbConnection();
-        $res = dsc_billing_publish_combined_invoice($db, $engId, $anchor, $tasksDocId);
+        $modeSt = $db->prepare('SELECT COALESCE(billing_mode, \'hourly\') AS billing_mode FROM engagements WHERE id = :id');
+        $modeSt->bindValue(':id', $engId, SQLITE3_INTEGER);
+        $modeRow = $modeSt->execute()->fetchArray(SQLITE3_ASSOC);
+        $isFlat = $modeRow && (($modeRow['billing_mode'] ?? '') === 'flat_tier');
+        if (!$isFlat && $tasksDocId <= 0) {
+            return ['success' => false, 'code' => 400, 'error' => 'tasks_document_id is required'];
+        }
+        $res = dsc_billing_publish_combined_invoice(
+            $db,
+            $engId,
+            $anchor,
+            $tasksDocId > 0 ? $tasksDocId : null,
+            $tierKey
+        );
         if (empty($res['ok'])) {
             $msg = $res['error'] ?? 'Publish failed';
             $code = str_contains(strtolower($msg), 'not configured') ? 503 : 400;

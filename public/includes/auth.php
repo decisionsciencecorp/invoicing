@@ -44,11 +44,13 @@ function login(string $username, string $password): array {
 
 function logout(): bool {
     $_SESSION = [];
-    if (ini_get('session.use_cookies')) {
+    if (php_sapi_name() !== 'cli' && ini_get('session.use_cookies')) {
         $p = session_get_cookie_params();
         setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
     }
-    session_destroy();
+    if (php_sapi_name() !== 'cli' && session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
     return true;
 }
 

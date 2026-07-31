@@ -26,6 +26,23 @@ php -S 127.0.0.1:8080
 # open http://127.0.0.1:8080/admin/login.php
 ```
 
+## Tests (local only — never against production)
+
+PHPUnit (pcov) with Square/Tasks mocked:
+
+```bash
+php tools/phpunit.phar -c phpunit.xml --coverage-text
+```
+
+Gate: **≥90%** line coverage on the instrumented tree (`public/includes` + `public/api/handlers`, excluding Parsedown, live HTTP transports, DB bootstrap, and session/csrf die paths covered by e2e).
+
+Playwright e2e against a local `php -S` + temp SQLite DB:
+
+```bash
+npm --prefix tools/e2e install
+npm --prefix tools/e2e test
+```
+
 ## Square (sandbox)
 
 Admin → **Square config**: access token, environment `sandbox`, optional location ID. **Test connection** calls `GET /v2/locations`.

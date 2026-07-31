@@ -142,7 +142,7 @@ function dsc_invoicing_resolve_api_key(?array $parsedJsonBody = null): ?string {
     if (isset($_GET['api_key'])) {
         return trim((string) $_GET['api_key']);
     }
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_key'])) {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['api_key'])) {
         return trim((string) $_POST['api_key']);
     }
     if (is_array($parsedJsonBody) && isset($parsedJsonBody['api_key'])) {
@@ -163,7 +163,7 @@ function getApiKey() {
     if (isset($_GET['api_key'])) {
         return trim((string) $_GET['api_key']);
     }
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         if (isset($_POST['api_key'])) {
             return trim((string) $_POST['api_key']);
         }

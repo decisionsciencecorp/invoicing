@@ -17,7 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'publish
     $eid = (int) ($_POST['engagement_id'] ?? 0);
     $anchor = trim((string) ($_POST['anchor_month'] ?? ''));
     $tasksDocId = (int) ($_POST['tasks_document_id'] ?? 0);
-    $res = dsc_billing_publish_combined_invoice($db, $eid, $anchor, $tasksDocId > 0 ? $tasksDocId : null);
+    $tierKey = trim((string) ($_POST['tier_key'] ?? 'tier1'));
+    $res = dsc_billing_publish_combined_invoice(
+        $db,
+        $eid,
+        $anchor,
+        $tasksDocId > 0 ? $tasksDocId : null,
+        $tierKey !== '' ? $tierKey : 'tier1'
+    );
     if (!empty($res['ok'])) {
         $flash = $res['message'] ?? 'Published.';
         if (!empty($res['canonical_url'])) {
@@ -75,18 +82,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'refresh
 $selE = (int) ($_GET['engagement_id'] ?? ($_POST['engagement_id'] ?? 0));
 $selM = trim((string) ($_GET['anchor_month'] ?? ($_POST['anchor_month'] ?? gmdate('Y-m'))));
 $selDoc = (int) ($_GET['tasks_document_id'] ?? ($_POST['tasks_document_id'] ?? 0));
+$selTier = dsc_billing_normalize_tier_key((string) ($_GET['tier_key'] ?? ($_POST['tier_key'] ?? 'tier1')));
 if (!dsc_billing_valid_month($selM)) {
     $selM = gmdate('Y-m');
 }
 
+$selEngMode = 'hourly';
+$selEngRow = null;
+if ($selE > 0) {
+    $est = $db->prepare(
+        'SELECT id, COALESCE(billing_mode, \'hourly\') AS billing_mode, '
+        . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
+        . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents FROM engagements WHERE id = :id'
+    );
+    $est->bindValue(':id', $selE, SQLITE3_INTEGER);
+    $selEngRow = $est->execute()->fetchArray(SQLITE3_ASSOC) ?: null;
+    if ($selEngRow) {
+        $selEngMode = (($selEngRow['billing_mode'] ?? '') === 'flat_tier') ? 'flat_tier' : 'hourly';
+    }
+}
+$isFlatPreview = $selEngMode === 'flat_tier';
+
 $preview = null;
 if ($selE > 0 && dsc_billing_valid_month($selM)) {
-    $preview = dsc_billing_combined_totals($db, $selE, $selM);
+    $preview = dsc_billing_combined_totals($db, $selE, $selM, $isFlatPreview ? $selTier : null);
 }
 
 $engList = [];
 $er = $db->query(
-    'SELECT e.id, e.name AS en, c.name AS cn FROM engagements e '
+    'SELECT e.id, e.name AS en, c.name AS cn, COALESCE(e.billing_mode, \'hourly\') AS billing_mode '
+    . 'FROM engagements e '
     . 'JOIN companies c ON c.id = e.company_id WHERE e.status = \'active\' '
     . 'ORDER BY c.name COLLATE NOCASE, e.name COLLATE NOCASE'
 );
@@ -124,7 +149,10 @@ require_once __DIR__ . '/includes/nav.php';
     </form>
 </div>
 
-<p style="color:#8b949e;margin-top:0;">Retainer for <strong>anchor month</strong> M plus overage from prior month <strong>M−1</strong>. Requires a <strong>Tasks accounting document</strong> (markdown). Publishes separate Square payment links for retainer and overage when applicable, plus a canonical client breakdown page on this site.</p>
+<p style="color:#8b949e;margin-top:0;">
+    <strong>Hourly:</strong> retainer for anchor month M plus overage from M−1 (Tasks accounting doc required).
+    <strong>Flat/tier:</strong> pick Tier 1 or Tier 2 at publish (Net 30); accounting doc optional.
+</p>
 
 <?php if ($flash !== ''): ?>
     <div class="message <?= $flashType === 'ok' ? 'ok' : 'err' ?>"><?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?></div>
@@ -139,15 +167,27 @@ require_once __DIR__ . '/includes/nav.php';
             <?php foreach ($engList as $eg): ?>
                 <option value="<?= (int) $eg['id'] ?>" <?= $selE === (int) $eg['id'] ? 'selected' : '' ?>>
                     <?= htmlspecialchars((string) $eg['cn'], ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars((string) $eg['en'], ENT_QUOTES, 'UTF-8') ?>
+                    <?= (($eg['billing_mode'] ?? '') === 'flat_tier') ? ' [flat/tier]' : '' ?>
                 </option>
             <?php endforeach; ?>
         </select>
         <label for="anchor_month">Anchor month</label>
         <input id="anchor_month" name="anchor_month" type="month" required value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>" style="display:block;margin-bottom:.75rem;">
-        <label for="tasks_document_id">Accounting document (Tasks)</label>
+        <?php if ($isFlatPreview): ?>
+            <label for="tier_key">Program tier (Jim/Acquire approval; default Tier 1)</label>
+            <select id="tier_key" name="tier_key" style="display:block;margin-bottom:.75rem;max-width:20rem;">
+                <option value="tier1" <?= $selTier === 'tier1' ? 'selected' : '' ?>>
+                    Tier 1 — $<?= number_format(((int) ($selEngRow['tier1_amount_cents'] ?? 0)) / 100, 2) ?>
+                </option>
+                <option value="tier2" <?= $selTier === 'tier2' ? 'selected' : '' ?>>
+                    Tier 2 — $<?= number_format(((int) ($selEngRow['tier2_amount_cents'] ?? 0)) / 100, 2) ?>
+                </option>
+            </select>
+        <?php endif; ?>
+        <label for="tasks_document_id">Accounting document (Tasks)<?= $isFlatPreview ? ' — optional for flat/tier' : '' ?></label>
         <?php if ($accountingDocs !== []): ?>
-            <select id="tasks_document_id" name="tasks_document_id" required style="display:block;margin-bottom:.35rem;max-width:40rem;width:100%;">
-                <option value="">Select time log…</option>
+            <select id="tasks_document_id" name="tasks_document_id" <?= $isFlatPreview ? '' : 'required' ?> style="display:block;margin-bottom:.35rem;max-width:40rem;width:100%;">
+                <option value=""><?= $isFlatPreview ? 'None (optional)…' : 'Select time log…' ?></option>
                 <?php foreach ($accountingDocs as $ad): ?>
                     <option value="<?= (int) $ad['id'] ?>" <?= $selDoc === (int) $ad['id'] ? 'selected' : '' ?>>
                         #<?= (int) $ad['id'] ?> — <?= htmlspecialchars((string) $ad['title'], ENT_QUOTES, 'UTF-8') ?>
@@ -158,13 +198,13 @@ require_once __DIR__ . '/includes/nav.php';
                 From <a href="<?= htmlspecialchars($tasksBase . '/admin/project.php?id=' . dsc_tasks_psf_project_id(), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">ProSpikeFlow Work</a> → docs → <code>client-facing</code> time logs.
             </p>
         <?php else: ?>
-            <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" required
+            <input id="tasks_document_id" name="tasks_document_id" type="number" min="1" <?= $isFlatPreview ? '' : 'required' ?>
                    value="<?= $selDoc > 0 ? (int) $selDoc : '' ?>"
                    placeholder="Tasks document id"
                    style="display:block;margin-bottom:.75rem;max-width:12rem;">
             <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">Configure Tasks API under Square settings, or enter a document id from the PSF board.</p>
         <?php endif; ?>
-        <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">The markdown body becomes the <strong>client invoice page</strong> (snapshotted at publish).</p>
+        <p style="color:#8b949e;font-size:.875rem;margin:-.35rem 0 .75rem;">The markdown body becomes the <strong>client invoice page</strong> (snapshotted at publish) when provided.</p>
         <button type="submit" class="btn btn-outline">Preview totals</button>
     </form>
 
@@ -172,25 +212,37 @@ require_once __DIR__ . '/includes/nav.php';
         <?php if (isset($preview['error'])): ?>
             <div class="message err"><?= htmlspecialchars($preview['error'], ENT_QUOTES, 'UTF-8') ?></div>
         <?php else: ?>
+            <?php $previewFlat = (($preview['billing_mode'] ?? '') === 'flat_tier'); ?>
             <table style="width:100%;max-width:36rem;font-size:.875rem;border-collapse:collapse;">
                 <tbody>
-                    <tr><td style="padding:.25rem 0;">Anchor (retainer) month</td><td style="text-align:right;"><code><?= htmlspecialchars($preview['retainer_month'], ENT_QUOTES, 'UTF-8') ?></code></td></tr>
-                    <tr><td style="padding:.25rem 0;">Prior month (overage basis)</td><td style="text-align:right;"><code><?= htmlspecialchars((string) ($preview['overage_month'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td></tr>
-                    <tr><td style="padding:.25rem 0;">Retainer</td><td style="text-align:right;">$<?= number_format($preview['retainer_amount_cents'] / 100, 2) ?></td></tr>
-                    <tr><td style="padding:.25rem 0;">Overage</td><td style="text-align:right;">$<?= number_format($preview['overage_amount_cents'] / 100, 2) ?></td></tr>
+                    <tr><td style="padding:.25rem 0;">Billing mode</td><td style="text-align:right;"><code><?= htmlspecialchars((string) ($preview['billing_mode'] ?? 'hourly'), ENT_QUOTES, 'UTF-8') ?></code></td></tr>
+                    <tr><td style="padding:.25rem 0;">Anchor month</td><td style="text-align:right;"><code><?= htmlspecialchars($preview['retainer_month'], ENT_QUOTES, 'UTF-8') ?></code></td></tr>
+                    <?php if ($previewFlat): ?>
+                        <tr><td style="padding:.25rem 0;">Tier</td><td style="text-align:right;"><?= htmlspecialchars(dsc_billing_tier_label((string) ($preview['tier_key'] ?? 'tier1')), ENT_QUOTES, 'UTF-8') ?></td></tr>
+                        <tr><td style="padding:.25rem 0;">Program fee</td><td style="text-align:right;">$<?= number_format($preview['retainer_amount_cents'] / 100, 2) ?></td></tr>
+                        <tr><td style="padding:.25rem 0;">Due</td><td style="text-align:right;">Net 30 (<?= htmlspecialchars((string) ($preview['fee_due_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?>)</td></tr>
+                    <?php else: ?>
+                        <tr><td style="padding:.25rem 0;">Prior month (overage basis)</td><td style="text-align:right;"><code><?= htmlspecialchars((string) ($preview['overage_month'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td></tr>
+                        <tr><td style="padding:.25rem 0;">Retainer</td><td style="text-align:right;">$<?= number_format($preview['retainer_amount_cents'] / 100, 2) ?></td></tr>
+                        <tr><td style="padding:.25rem 0;">Overage</td><td style="text-align:right;">$<?= number_format($preview['overage_amount_cents'] / 100, 2) ?></td></tr>
+                    <?php endif; ?>
                     <tr style="font-weight:600;"><td style="padding:.25rem 0;">Total</td><td style="text-align:right;">$<?= number_format($preview['total_cents'] / 100, 2) ?></td></tr>
                 </tbody>
             </table>
             <?php if ($selE > 0 && $preview['total_cents'] > 0): ?>
+                <?php $canPublish = $previewFlat || $selDoc > 0; ?>
                 <form method="POST" style="margin-top:1rem;">
                     <?= csrfField() ?>
                     <input type="hidden" name="form" value="publish_invoice">
                     <input type="hidden" name="engagement_id" value="<?= (int) $selE ?>">
                     <input type="hidden" name="anchor_month" value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="tasks_document_id" value="<?= (int) $selDoc ?>">
-                    <button type="submit" class="btn" <?= $selDoc <= 0 ? 'disabled title="Enter Tasks document id first"' : '' ?>>Publish to Square + client page</button>
+                    <?php if ($previewFlat): ?>
+                        <input type="hidden" name="tier_key" value="<?= htmlspecialchars($selTier, ENT_QUOTES, 'UTF-8') ?>">
+                    <?php endif; ?>
+                    <button type="submit" class="btn" <?= !$canPublish ? 'disabled title="Enter Tasks document id first"' : '' ?>>Publish to Square + client page</button>
                 </form>
-                <?php if ($selDoc <= 0): ?>
+                <?php if (!$canPublish): ?>
                     <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Enter a Tasks document id before publishing.</p>
                 <?php endif; ?>
             <?php elseif ($preview['total_cents'] <= 0): ?>

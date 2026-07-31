@@ -47,6 +47,12 @@ $overageStatus = (string) ($row['overage_payment_status'] ?? '');
 $docTitle = trim((string) ($row['tasks_document_title'] ?? ''));
 $markdown = (string) ($row['accounting_markdown'] ?? '');
 $canonical = dsc_billing_canonical_invoice_url($token);
+$isFlat = (($row['billing_mode'] ?? '') === 'flat_tier');
+$tierKey = (string) ($row['tier_key'] ?? 'tier1');
+$feeDue = trim((string) ($row['fee_due_date'] ?? ''));
+if ($feeDue === '' && $isFlat) {
+    $feeDue = $retainerDue;
+}
 
 header('Content-Type: text/html; charset=utf-8');
 header('Link: <' . $canonical . '>; rel="canonical"');
@@ -80,7 +86,9 @@ header('Link: <' . $canonical . '>; rel="canonical"');
         <p style="margin:0;color:#8b949e;">
             <?= htmlspecialchars($engagement, ENT_QUOTES, 'UTF-8') ?>
             · Anchor month <code><?= htmlspecialchars($anchor, ENT_QUOTES, 'UTF-8') ?></code>
-            <?php if ($overageMonth !== ''): ?>
+            <?php if ($isFlat): ?>
+                · <?= htmlspecialchars(dsc_billing_tier_label($tierKey), ENT_QUOTES, 'UTF-8') ?>
+            <?php elseif ($overageMonth !== ''): ?>
                 · Overage from <code><?= htmlspecialchars($overageMonth, ENT_QUOTES, 'UTF-8') ?></code>
             <?php endif; ?>
         </p>
@@ -89,21 +97,23 @@ header('Link: <' . $canonical . '>; rel="canonical"');
     <div class="invoice-grid">
         <?php if ($retainerCents > 0): ?>
             <div class="pay-card <?= $retainerStatus === 'paid' ? 'paid' : '' ?>">
-                <h3>Monthly retainer</h3>
+                <h3><?= $isFlat ? htmlspecialchars(dsc_billing_tier_label($tierKey) . ' program fee', ENT_QUOTES, 'UTF-8') : 'Monthly retainer' ?></h3>
                 <div class="amount">$<?= number_format($retainerCents / 100, 2) ?></div>
-                <?php if ($retainerDue !== ''): ?>
+                <?php if ($isFlat && $feeDue !== ''): ?>
+                    <div class="due">Due: <?= htmlspecialchars($feeDue, ENT_QUOTES, 'UTF-8') ?> (net 30)</div>
+                <?php elseif (!$isFlat && $retainerDue !== ''): ?>
                     <div class="due">Due: <?= htmlspecialchars($retainerDue, ENT_QUOTES, 'UTF-8') ?> (upon receipt)</div>
                 <?php endif; ?>
                 <span class="status-pill <?= htmlspecialchars($retainerStatus, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($retainerStatus, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php if ($retainerPayUrl !== '' && $retainerStatus !== 'paid'): ?>
-                    <p style="margin:1rem 0 0;"><a class="btn" href="<?= htmlspecialchars($retainerPayUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener">Pay retainer via Square</a></p>
+                    <p style="margin:1rem 0 0;"><a class="btn" href="<?= htmlspecialchars($retainerPayUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener"><?= $isFlat ? 'Pay via Square' : 'Pay retainer via Square' ?></a></p>
                 <?php elseif ($retainerStatus === 'paid'): ?>
                     <p style="margin:1rem 0 0;color:#3fb950;">Paid — thank you.</p>
                 <?php endif; ?>
             </div>
         <?php endif; ?>
 
-        <?php if ($overageCents > 0): ?>
+        <?php if (!$isFlat && $overageCents > 0): ?>
             <div class="pay-card <?= $overageStatus === 'paid' ? 'paid' : '' ?>">
                 <h3>Prior-month overage</h3>
                 <div class="amount">$<?= number_format($overageCents / 100, 2) ?></div>

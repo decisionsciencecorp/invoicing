@@ -159,7 +159,9 @@ function initializeDatabase(): void {
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_outbound_square_invoice ON outbound_invoices(square_invoice_id)');
     dsc_invoicing_ensure_engagement_work_stoppage_column($db);
+    dsc_invoicing_ensure_engagement_flat_tier_columns($db);
     dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
+    dsc_invoicing_ensure_outbound_flat_tier_columns($db);
 }
 
 /**
@@ -200,6 +202,56 @@ function dsc_invoicing_ensure_engagement_work_stoppage_column(SQLite3 $db): void
     }
     if (!$has) {
         $db->exec('ALTER TABLE engagements ADD COLUMN work_stoppage INTEGER NOT NULL DEFAULT 0');
+    }
+}
+
+/**
+ * D11 — flat_tier engagements: billing_mode + Tier 1 / Tier 2 invoice amounts.
+ */
+function dsc_invoicing_ensure_engagement_flat_tier_columns(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $cols = [];
+    $r = $db->query('PRAGMA table_info(engagements)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $cols[(string) ($row['name'] ?? '')] = true;
+    }
+    if (!isset($cols['billing_mode'])) {
+        $db->exec("ALTER TABLE engagements ADD COLUMN billing_mode TEXT NOT NULL DEFAULT 'hourly'");
+    }
+    if (!isset($cols['tier1_amount_cents'])) {
+        $db->exec('ALTER TABLE engagements ADD COLUMN tier1_amount_cents INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!isset($cols['tier2_amount_cents'])) {
+        $db->exec('ALTER TABLE engagements ADD COLUMN tier2_amount_cents INTEGER NOT NULL DEFAULT 0');
+    }
+}
+
+/**
+ * D11 — snapshot flat/tier metadata on outbound invoices.
+ */
+function dsc_invoicing_ensure_outbound_flat_tier_columns(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $cols = [];
+    $r = $db->query('PRAGMA table_info(outbound_invoices)');
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $cols[(string) ($row['name'] ?? '')] = true;
+    }
+    if (!isset($cols['billing_mode'])) {
+        $db->exec('ALTER TABLE outbound_invoices ADD COLUMN billing_mode TEXT');
+    }
+    if (!isset($cols['tier_key'])) {
+        $db->exec('ALTER TABLE outbound_invoices ADD COLUMN tier_key TEXT');
+    }
+    if (!isset($cols['fee_due_date'])) {
+        $db->exec('ALTER TABLE outbound_invoices ADD COLUMN fee_due_date TEXT');
     }
 }
 

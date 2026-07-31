@@ -87,54 +87,18 @@ function square_is_configured(): bool {
  * @return array{ok:bool, status?:int, data?:array, error?:string}
  */
 function dsc_invoicing_square_request(string $method, string $path, ?array $body = null): array {
-    $cfg = dsc_invoicing_square_config();
-    if (empty($cfg['access_token'])) {
-        return ['ok' => false, 'status' => 0, 'error' => 'Square not configured (no access token)'];
+    // PHPUnit / local mocks — never used in production unless INVOICING_SQUARE_MOCK=1.
+    if (getenv('INVOICING_SQUARE_MOCK') === '1'
+        && isset($GLOBALS['_dsc_square_mock_handler'])
+        && is_callable($GLOBALS['_dsc_square_mock_handler'])
+    ) {
+        /** @var callable $handler */
+        $handler = $GLOBALS['_dsc_square_mock_handler'];
+        return $handler($method, $path, $body);
     }
 
-    $url = $cfg['base_url'] . $path;
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $cfg['access_token'],
-            'Content-Type: application/json',
-        ],
-    ]);
-
-    if ($method === 'GET') {
-        // default
-    } elseif ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
-        if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-        }
-    } else {
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        if ($body !== null) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-        }
-    }
-
-    $raw = curl_exec($ch);
-    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlErr = curl_error($ch);
-    curl_close($ch);
-
-    if ($curlErr) {
-        return ['ok' => false, 'status' => 0, 'error' => 'curl: ' . $curlErr];
-    }
-
-    $data = json_decode((string) $raw, true) ?: [];
-    $ok = $status >= 200 && $status < 300;
-    if (!$ok) {
-        $errors = $data['errors'] ?? [];
-        $msg = $errors ? json_encode($errors) : 'HTTP ' . $status;
-        return ['ok' => false, 'status' => $status, 'error' => $msg, 'data' => $data];
-    }
-    return ['ok' => true, 'status' => $status, 'data' => $data];
+    require_once __DIR__ . '/square-live-http.php';
+    return dsc_invoicing_square_request_live($method, $path, $body);
 }
 
 // ---------------------------------------------------------------------------

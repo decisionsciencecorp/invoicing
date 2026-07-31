@@ -23,8 +23,11 @@ if (!$company) {
 
 $list = [];
 $st = $db->prepare(
-    'SELECT id, name, hourly_rate_cents, included_hours_per_month, status, square_subscription_id ' .
-    'FROM engagements WHERE company_id = :cid ORDER BY name COLLATE NOCASE'
+    'SELECT id, name, hourly_rate_cents, included_hours_per_month, status, square_subscription_id, '
+    . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
+    . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
+    . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents '
+    . 'FROM engagements WHERE company_id = :cid ORDER BY name COLLATE NOCASE'
 );
 $st->bindValue(':cid', $companyId, SQLITE3_INTEGER);
 $er = $st->execute();
@@ -50,7 +53,7 @@ require_once __DIR__ . '/includes/nav.php';
 </div>
 
 <div class="info-box">
-    <p style="color:#8b949e;margin-top:0;">Default rate <strong>$100/hr</strong> (10000 cents) unless overridden. Included hours = retainer bucket per PRD.</p>
+    <p style="color:#8b949e;margin-top:0;">Hourly default <strong>$100/hr</strong>. Flat/tier engagements show Tier 1 / Tier 2 invoice amounts instead.</p>
     <?php if ($list === []): ?>
         <p>No engagements. <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/engagement-edit.php?company_id=' . $companyId), ENT_QUOTES, 'UTF-8') ?>">Add one</a>.</p>
     <?php else: ?>
@@ -58,23 +61,36 @@ require_once __DIR__ . '/includes/nav.php';
             <thead>
                 <tr style="text-align:left;border-bottom:1px solid #30363d;">
                     <th style="padding:0.4rem 0;">Name</th>
-                    <th style="padding:0.4rem 0;">$/hr</th>
-                    <th style="padding:0.4rem 0;">Included hrs/mo</th>
+                    <th style="padding:0.4rem 0;">Mode</th>
+                    <th style="padding:0.4rem 0;">Rate / tiers</th>
                     <th style="padding:0.4rem 0;">Status</th>
                     <th style="padding:0.4rem 0;">Time</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($list as $e): ?>
+                    <?php $isFlat = (($e['billing_mode'] ?? '') === 'flat_tier'); ?>
                     <tr style="border-bottom:1px solid #21262d;">
                         <td style="padding:0.35rem 0;">
                             <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/engagement-edit.php?id=' . (int) $e['id'] . '&company_id=' . $companyId), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $e['name'], ENT_QUOTES, 'UTF-8') ?></a>
                         </td>
-                        <td style="padding:0.35rem 0;">$<?= number_format(((int) $e['hourly_rate_cents']) / 100, 2) ?></td>
-                        <td style="padding:0.35rem 0;"><?= (int) $e['included_hours_per_month'] ?></td>
+                        <td style="padding:0.35rem 0;"><?= $isFlat ? 'flat/tier' : 'hourly' ?></td>
+                        <td style="padding:0.35rem 0;">
+                            <?php if ($isFlat): ?>
+                                T1 $<?= number_format(((int) $e['tier1_amount_cents']) / 100, 2) ?>
+                                · T2 $<?= number_format(((int) $e['tier2_amount_cents']) / 100, 2) ?>
+                            <?php else: ?>
+                                $<?= number_format(((int) $e['hourly_rate_cents']) / 100, 2) ?>/hr
+                                · <?= (int) $e['included_hours_per_month'] ?> hrs
+                            <?php endif; ?>
+                        </td>
                         <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) $e['status'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td style="padding:0.35rem 0;">
-                            <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php?engagement_id=' . (int) $e['id']), ENT_QUOTES, 'UTF-8') ?>">Log</a>
+                            <?php if ($isFlat): ?>
+                                <span style="color:#8b949e;">n/a</span>
+                            <?php else: ?>
+                                <a href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php?engagement_id=' . (int) $e['id']), ENT_QUOTES, 'UTF-8') ?>">Log</a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

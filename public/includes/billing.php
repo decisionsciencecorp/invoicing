@@ -41,6 +41,20 @@ function dsc_billing_due_dates_for_publish(): array {
     ];
 }
 
+/** Flat/tier fee: Net 30 from publish day (Acquire-style). Does not change hourly retainer timing. */
+function dsc_billing_flat_fee_due_date(): string {
+    return (new DateTimeImmutable('today', new DateTimeZone('UTC')))->modify('+30 days')->format('Y-m-d');
+}
+
+function dsc_billing_normalize_tier_key(?string $tierKey): string {
+    $k = strtolower(trim((string) $tierKey));
+    return $k === 'tier2' ? 'tier2' : 'tier1';
+}
+
+function dsc_billing_tier_label(string $tierKey): string {
+    return dsc_billing_normalize_tier_key($tierKey) === 'tier2' ? 'Tier 2' : 'Tier 1';
+}
+
 function dsc_billing_generate_public_token(): string {
     return bin2hex(random_bytes(16));
 }
@@ -248,21 +262,34 @@ function dsc_billing_sum_hours_engagement(SQLite3 $db, int $engagementId, string
 
 /**
  * @return array{
+ *     billing_mode:string,
  *     retainer_month:string,
  *     overage_month:string|null,
  *     retainer_amount_cents:int,
  *     overage_amount_cents:int,
  *     total_cents:int,
  *     hourly_rate_cents:int,
- *     included_hours_per_month:int
+ *     included_hours_per_month:int,
+ *     tier_key?:string,
+ *     fee_due_date?:string,
+ *     tier1_amount_cents?:int,
+ *     tier2_amount_cents?:int
  * }|array{error:string}
  */
-function dsc_billing_combined_totals(SQLite3 $db, int $engagementId, string $anchorMonth): array {
+function dsc_billing_combined_totals(
+    SQLite3 $db,
+    int $engagementId,
+    string $anchorMonth,
+    ?string $tierKey = null,
+): array {
     if (!dsc_billing_valid_month($anchorMonth)) {
         return ['error' => 'Invalid billing month (use YYYY-MM).'];
     }
     $st = $db->prepare(
-        'SELECT e.id, e.hourly_rate_cents, e.included_hours_per_month, e.status, e.name AS engagement_name '
+        'SELECT e.id, e.hourly_rate_cents, e.included_hours_per_month, e.status, e.name AS engagement_name, '
+        . 'COALESCE(e.billing_mode, \'hourly\') AS billing_mode, '
+        . 'COALESCE(e.tier1_amount_cents, 0) AS tier1_amount_cents, '
+        . 'COALESCE(e.tier2_amount_cents, 0) AS tier2_amount_cents '
         . 'FROM engagements e WHERE e.id = :id LIMIT 1'
     );
     $st->bindValue(':id', $engagementId, SQLITE3_INTEGER);
@@ -274,6 +301,12 @@ function dsc_billing_combined_totals(SQLite3 $db, int $engagementId, string $anc
     if (($e['status'] ?? '') !== 'active') {
         return ['error' => 'Engagement is not active; cannot invoice.'];
     }
+
+    $mode = trim((string) ($e['billing_mode'] ?? 'hourly'));
+    if ($mode === 'flat_tier') {
+        return dsc_billing_flat_tier_totals($e, $anchorMonth, $tierKey);
+    }
+
     $rate = (int) $e['hourly_rate_cents'];
     $included = (int) $e['included_hours_per_month'];
     $overageMonth = dsc_billing_prev_month($anchorMonth);
@@ -288,6 +321,7 @@ function dsc_billing_combined_totals(SQLite3 $db, int $engagementId, string $anc
 
     $total = $retainerCents + $overageCents;
     return [
+        'billing_mode' => 'hourly',
         'retainer_month' => $anchorMonth,
         'overage_month' => $overageMonth,
         'retainer_amount_cents' => $retainerCents,
@@ -295,6 +329,53 @@ function dsc_billing_combined_totals(SQLite3 $db, int $engagementId, string $anc
         'total_cents' => $total,
         'hourly_rate_cents' => $rate,
         'included_hours_per_month' => $included,
+    ];
+}
+
+/**
+ * @param array<string,mixed> $engagementRow
+ * @return array{
+ *     billing_mode:string,
+ *     retainer_month:string,
+ *     overage_month:string|null,
+ *     retainer_amount_cents:int,
+ *     overage_amount_cents:int,
+ *     total_cents:int,
+ *     hourly_rate_cents:int,
+ *     included_hours_per_month:int,
+ *     tier_key:string,
+ *     fee_due_date:string,
+ *     tier1_amount_cents:int,
+ *     tier2_amount_cents:int
+ * }|array{error:string}
+ */
+function dsc_billing_flat_tier_totals(array $engagementRow, string $anchorMonth, ?string $tierKey = null): array {
+    $key = dsc_billing_normalize_tier_key($tierKey);
+    $t1 = max(0, (int) ($engagementRow['tier1_amount_cents'] ?? 0));
+    $t2 = max(0, (int) ($engagementRow['tier2_amount_cents'] ?? 0));
+    $amount = $key === 'tier2' ? $t2 : $t1;
+    if ($amount <= 0) {
+        return [
+            'error' => 'Flat/tier engagement has $0 for '
+                . dsc_billing_tier_label($key)
+                . '. Set Tier 1 / Tier 2 amounts on the engagement.',
+        ];
+    }
+    $prev = dsc_billing_prev_month($anchorMonth);
+
+    return [
+        'billing_mode' => 'flat_tier',
+        'retainer_month' => $anchorMonth,
+        'overage_month' => $prev ?? $anchorMonth,
+        'retainer_amount_cents' => $amount,
+        'overage_amount_cents' => 0,
+        'total_cents' => $amount,
+        'hourly_rate_cents' => 0,
+        'included_hours_per_month' => 0,
+        'tier_key' => $key,
+        'fee_due_date' => dsc_billing_flat_fee_due_date(),
+        'tier1_amount_cents' => $t1,
+        'tier2_amount_cents' => $t2,
     ];
 }
 
@@ -354,7 +435,8 @@ function dsc_invoicing_square_ensure_company_customer(SQLite3 $db, int $companyI
 }
 
 /**
- * Create split Square invoices (retainer + optional overage), snapshot Tasks doc, public breakdown page.
+ * Create split Square invoices (retainer + optional overage), or a single flat/tier fee invoice.
+ * Snapshots optional Tasks doc; issues public breakdown page.
  *
  * @return array{ok:bool, message?:string, outbound_id?:int, public_url?:string, canonical_url?:string, error?:string}
  */
@@ -363,29 +445,40 @@ function dsc_billing_publish_combined_invoice(
     int $engagementId,
     string $anchorMonth,
     ?int $tasksDocumentId = null,
+    ?string $tierKey = null,
 ): array {
-    $totals = dsc_billing_combined_totals($db, $engagementId, $anchorMonth);
+    $totals = dsc_billing_combined_totals($db, $engagementId, $anchorMonth, $tierKey);
     if (isset($totals['error'])) {
         return ['ok' => false, 'error' => $totals['error']];
     }
     if ($totals['total_cents'] <= 0) {
         return ['ok' => false, 'error' => 'Nothing to bill (retainer + overage total is zero).'];
     }
+
+    $isFlat = (($totals['billing_mode'] ?? 'hourly') === 'flat_tier');
     $overageMonth = $totals['overage_month'];
-    if ($overageMonth === null) {
+    if (!$isFlat && $overageMonth === null) {
         return ['ok' => false, 'error' => 'Could not resolve prior month for overage.'];
     }
-    if ($tasksDocumentId === null || $tasksDocumentId <= 0) {
-        return ['ok' => false, 'error' => 'Tasks accounting document id is required before publishing.'];
+    if ($overageMonth === null || $overageMonth === '') {
+        $overageMonth = $anchorMonth;
     }
 
-    $docFetch = dsc_tasks_fetch_document($tasksDocumentId);
-    if (!$docFetch['ok']) {
-        return ['ok' => false, 'error' => $docFetch['error'] ?? 'Could not load Tasks document.'];
-    }
-    $doc = $docFetch['document'] ?? null;
-    if (!is_array($doc)) {
-        return ['ok' => false, 'error' => 'Tasks document payload missing.'];
+    $docTitle = '';
+    $docBody = '';
+    if ($tasksDocumentId !== null && $tasksDocumentId > 0) {
+        $docFetch = dsc_tasks_fetch_document($tasksDocumentId);
+        if (!$docFetch['ok']) {
+            return ['ok' => false, 'error' => $docFetch['error'] ?? 'Could not load Tasks document.'];
+        }
+        $doc = $docFetch['document'] ?? null;
+        if (!is_array($doc)) {
+            return ['ok' => false, 'error' => 'Tasks document payload missing.'];
+        }
+        $docTitle = (string) ($doc['title'] ?? '');
+        $docBody = (string) ($doc['body'] ?? '');
+    } elseif (!$isFlat) {
+        return ['ok' => false, 'error' => 'Tasks accounting document id is required before publishing.'];
     }
 
     $cfg = dsc_invoicing_square_config();
@@ -415,31 +508,52 @@ function dsc_billing_publish_combined_invoice(
     }
 
     $dueDates = dsc_billing_due_dates_for_publish();
+    $feeDue = $isFlat
+        ? (string) ($totals['fee_due_date'] ?? dsc_billing_flat_fee_due_date())
+        : $dueDates['retainer_due_date'];
     $publicToken = dsc_billing_generate_public_token();
     $baseInvNum = 'DSC' . preg_replace('/\D/', '', $anchorMonth) . 'e' . $engagementId;
+    $flatTierKey = $isFlat ? dsc_billing_normalize_tier_key($totals['tier_key'] ?? $tierKey) : null;
+    $flatLabel = $isFlat ? dsc_billing_tier_label((string) $flatTierKey) : '';
 
     $retainerResult = null;
     if ($totals['retainer_amount_cents'] > 0) {
-        $retainerResult = dsc_billing_square_create_publish_invoice(
-            $customerId,
-            [[
-                'name' => 'Monthly retainer — ' . $anchorMonth,
-                'quantity' => '1',
-                'base_price_money' => ['amount' => $totals['retainer_amount_cents'], 'currency' => 'USD'],
-            ]],
-            $dueDates['retainer_due_date'],
-            'DSC retainer — ' . $anchorMonth,
-            'Monthly retainer for ' . $anchorMonth . ' (due upon receipt).',
-            $baseInvNum . 'R',
-            (string) $engagementId . '|' . $anchorMonth . '|retainer'
-        );
+        if ($isFlat) {
+            $retainerResult = dsc_billing_square_create_publish_invoice(
+                $customerId,
+                [[
+                    'name' => $flatLabel . ' program fee — ' . $anchorMonth,
+                    'quantity' => '1',
+                    'base_price_money' => ['amount' => $totals['retainer_amount_cents'], 'currency' => 'USD'],
+                ]],
+                $feeDue,
+                'DSC ' . $flatLabel . ' — ' . $anchorMonth,
+                $flatLabel . ' program fee for ' . $anchorMonth . ' (net 30).',
+                $baseInvNum . 'F',
+                (string) $engagementId . '|' . $anchorMonth . '|' . $flatTierKey
+            );
+        } else {
+            $retainerResult = dsc_billing_square_create_publish_invoice(
+                $customerId,
+                [[
+                    'name' => 'Monthly retainer — ' . $anchorMonth,
+                    'quantity' => '1',
+                    'base_price_money' => ['amount' => $totals['retainer_amount_cents'], 'currency' => 'USD'],
+                ]],
+                $dueDates['retainer_due_date'],
+                'DSC retainer — ' . $anchorMonth,
+                'Monthly retainer for ' . $anchorMonth . ' (due upon receipt).',
+                $baseInvNum . 'R',
+                (string) $engagementId . '|' . $anchorMonth . '|retainer'
+            );
+        }
         if (!$retainerResult['ok']) {
-            return ['ok' => false, 'error' => $retainerResult['error'] ?? 'Retainer invoice failed.'];
+            return ['ok' => false, 'error' => $retainerResult['error'] ?? 'Primary invoice failed.'];
         }
     }
 
     $overageResult = null;
-    if ($totals['overage_amount_cents'] > 0) {
+    if (!$isFlat && $totals['overage_amount_cents'] > 0) {
         $overageResult = dsc_billing_square_create_publish_invoice(
             $customerId,
             [[
@@ -463,7 +577,7 @@ function dsc_billing_publish_combined_invoice(
     $aggregate = dsc_billing_aggregate_payment_status(
         $retainerStatus,
         $overageStatus,
-        $totals['overage_amount_cents'] > 0
+        !$isFlat && $totals['overage_amount_cents'] > 0
     );
 
     $primarySquareId = $retainerResult['invoice_id'] ?? ($overageResult['invoice_id'] ?? '');
@@ -480,13 +594,13 @@ function dsc_billing_publish_combined_invoice(
             . 'public_url, delivery_method, payment_status, public_token, tasks_document_id, tasks_document_title, '
             . 'accounting_markdown, retainer_due_date, overage_due_date, square_retainer_invoice_id, '
             . 'square_overage_invoice_id, retainer_public_url, overage_public_url, retainer_payment_status, '
-            . 'overage_payment_status) VALUES '
+            . 'overage_payment_status, billing_mode, tier_key, fee_due_date) VALUES '
             . '(:e, :a, :o, :r, :ov, :t, :so, :si, :sv, :pu, :dm, :ps, :pt, :tdi, :tdt, :md, :rd, :od, :sri, :soi, '
-            . ':rpu, :opu, :rps, :ops)'
+            . ':rpu, :opu, :rps, :ops, :bm, :tk, :fd)'
         );
         $ins->bindValue(':e', $engagementId, SQLITE3_INTEGER);
         $ins->bindValue(':a', $anchorMonth, SQLITE3_TEXT);
-        $ins->bindValue(':o', $overageMonth, SQLITE3_TEXT);
+        $ins->bindValue(':o', (string) $overageMonth, SQLITE3_TEXT);
         $ins->bindValue(':r', $totals['retainer_amount_cents'], SQLITE3_INTEGER);
         $ins->bindValue(':ov', $totals['overage_amount_cents'], SQLITE3_INTEGER);
         $ins->bindValue(':t', $totals['total_cents'], SQLITE3_INTEGER);
@@ -497,11 +611,15 @@ function dsc_billing_publish_combined_invoice(
         $ins->bindValue(':dm', 'EMAIL', SQLITE3_TEXT);
         $ins->bindValue(':ps', $aggregate['payment_status'], SQLITE3_TEXT);
         $ins->bindValue(':pt', $publicToken, SQLITE3_TEXT);
-        $ins->bindValue(':tdi', $tasksDocumentId, SQLITE3_INTEGER);
-        $ins->bindValue(':tdt', (string) ($doc['title'] ?? ''), SQLITE3_TEXT);
-        $ins->bindValue(':md', (string) ($doc['body'] ?? ''), SQLITE3_TEXT);
-        $ins->bindValue(':rd', $dueDates['retainer_due_date'], SQLITE3_TEXT);
-        if ($totals['overage_amount_cents'] > 0) {
+        if ($tasksDocumentId !== null && $tasksDocumentId > 0) {
+            $ins->bindValue(':tdi', $tasksDocumentId, SQLITE3_INTEGER);
+        } else {
+            $ins->bindValue(':tdi', null, SQLITE3_NULL);
+        }
+        $ins->bindValue(':tdt', $docTitle, SQLITE3_TEXT);
+        $ins->bindValue(':md', $docBody, SQLITE3_TEXT);
+        $ins->bindValue(':rd', $isFlat ? $feeDue : $dueDates['retainer_due_date'], SQLITE3_TEXT);
+        if (!$isFlat && $totals['overage_amount_cents'] > 0) {
             $ins->bindValue(':od', $dueDates['overage_due_date'], SQLITE3_TEXT);
         } else {
             $ins->bindValue(':od', null, SQLITE3_NULL);
@@ -532,6 +650,17 @@ function dsc_billing_publish_combined_invoice(
         } else {
             $ins->bindValue(':ops', $aggregate['overage_payment_status'], SQLITE3_TEXT);
         }
+        $ins->bindValue(':bm', $isFlat ? 'flat_tier' : 'hourly', SQLITE3_TEXT);
+        if ($flatTierKey !== null) {
+            $ins->bindValue(':tk', $flatTierKey, SQLITE3_TEXT);
+        } else {
+            $ins->bindValue(':tk', null, SQLITE3_NULL);
+        }
+        if ($isFlat) {
+            $ins->bindValue(':fd', $feeDue, SQLITE3_TEXT);
+        } else {
+            $ins->bindValue(':fd', null, SQLITE3_NULL);
+        }
         $ins->execute();
     } catch (Throwable $e) {
         return [
@@ -541,7 +670,7 @@ function dsc_billing_publish_combined_invoice(
     }
     $outboundId = (int) $db->lastInsertRowID();
 
-    if ($totals['overage_amount_cents'] > 0 && !empty($overageResult['invoice_id'])) {
+    if (!$isFlat && $totals['overage_amount_cents'] > 0 && !empty($overageResult['invoice_id'])) {
         $stamp = $db->prepare(
             'UPDATE time_entries SET invoiced_square_invoice_id = :i, updated_at = CURRENT_TIMESTAMP '
             . 'WHERE engagement_id = :e AND billing_period_month = :p '
@@ -557,7 +686,9 @@ function dsc_billing_publish_combined_invoice(
 
     return [
         'ok' => true,
-        'message' => 'Invoice published with client breakdown page.',
+        'message' => $isFlat
+            ? 'Flat/tier invoice published with client breakdown page.'
+            : 'Invoice published with client breakdown page.',
         'outbound_id' => $outboundId,
         'public_url' => $primaryPublicUrl !== '' ? $primaryPublicUrl : null,
         'canonical_url' => $canonicalUrl,
