@@ -84,13 +84,13 @@ header('Content-Type: text/html; charset=utf-8');
 header('Link: <' . $canonical . '>; rel="canonical"');
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=3', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3', ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=4', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body class="inv-app">
 <main class="invoice-page">

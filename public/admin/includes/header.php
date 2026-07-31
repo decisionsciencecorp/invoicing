@@ -7,17 +7,19 @@ require_once __DIR__ . '/helpers.php';
 
 $adminPageTitle = $adminPageTitle ?? 'Admin';
 $invHideNav = !empty($invHideNav);
-$invCssVersion = '3';
+$invCssVersion = '4';
 $cssHref = dsc_invoicing_href('assets/css/invoicing.css') . '?v=' . $invCssVersion;
+$bsCssHref = dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3';
+$biCssHref = dsc_invoicing_href('assets/vendor/bootstrap-icons/font/bootstrap-icons.min.css') . '?v=1.11.3';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($adminPageTitle, ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars(SITE_NAME, ENT_QUOTES, 'UTF-8') ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?= htmlspecialchars($bsCssHref, ENT_QUOTES, 'UTF-8') ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars($biCssHref, ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($cssHref, ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body class="inv-app">

@@ -30,8 +30,8 @@
   --inv-radius-sm: 6px;
   --inv-gap-section: 1.5rem;
   --inv-gap-stack: 0.85rem;
-  --inv-font: "IBM Plex Sans", "Source Sans 3", system-ui, sans-serif;
-  --inv-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --inv-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --inv-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   --inv-status-published: #8b949e;
   --inv-status-published-soft: #21262d;
@@ -41,11 +41,25 @@
   --inv-status-paid-soft: #033a16;
   --inv-status-canceled: #f85149;
   --inv-status-canceled-soft: #3d1515;
+
+  /* Align Bootstrap 5.3 dark tokens with invoicing shell */
+  --bs-body-bg: var(--inv-bg-app);
+  --bs-body-color: var(--inv-text-primary);
+  --bs-border-color: var(--inv-border-subtle);
+  --bs-secondary-color: var(--inv-text-muted);
+  --bs-tertiary-bg: var(--inv-bg-soft);
+  --bs-emphasis-color: #f0f3f6;
+  --bs-link-color: var(--inv-link);
+  --bs-link-hover-color: var(--inv-accent-hover);
+  --bs-form-control-bg: var(--inv-bg-input);
+  --bs-body-font-family: var(--inv-font);
 }
 
 *,
 *::before,
 *::after { box-sizing: border-box; }
+
+html { color-scheme: dark; }
 
 body.inv-app {
   margin: 0;
@@ -58,8 +72,9 @@ body.inv-app {
     var(--inv-bg-app);
 }
 
-a { color: var(--inv-link); }
-a:hover { color: var(--inv-accent-hover); }
+.inv-app a { color: var(--inv-link); }
+.inv-app a:hover { color: var(--inv-accent-hover); }
+.inv-app a.btn { text-decoration: none; }
 
 /* ---------- Shell ---------- */
 .inv-shell {
@@ -94,19 +109,31 @@ a:hover { color: var(--inv-accent-hover); }
   padding-bottom: 0.7rem;
 }
 .admin-nav .btn-outline-light {
-  border-color: rgba(255, 255, 255, 0.25);
+  --bs-btn-color: #fff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.28);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.12);
+  --bs-btn-hover-border-color: rgba(255, 255, 255, 0.45);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: rgba(255, 255, 255, 0.18);
+  --bs-btn-active-border-color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
   font-weight: 500;
   font-size: var(--inv-nav-fs);
   line-height: 1.25;
   padding: 0.32rem 0.7rem;
   white-space: nowrap;
 }
-.admin-nav .btn-outline-light:hover {
+.admin-nav .btn-outline-light:hover,
+.admin-nav .btn-outline-light:focus {
   background-color: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.45);
   color: #fff;
 }
-.admin-nav .btn-outline-light.active {
+.admin-nav .btn-outline-light.active,
+.admin-nav .btn-outline-light:active {
   background-color: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.55);
   color: #fff;
@@ -269,61 +296,88 @@ a:hover { color: var(--inv-accent-hover); }
 }
 
 /* ---------- Forms (compat with existing markup) ---------- */
-label {
+.inv-app label {
   display: block;
   margin-top: 0.75rem;
   font-size: 0.875rem;
   color: var(--inv-text-muted);
 }
-input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
-select,
-textarea {
+.inv-app input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]),
+.inv-app select,
+.inv-app textarea {
   width: 100%;
   max-width: 32rem;
   margin-top: 0.25rem;
-  padding: 0.45rem 0.5rem;
+  padding: 0.45rem 0.65rem;
   border-radius: var(--inv-radius-sm);
-  border: 1px solid var(--inv-border-subtle);
+  border: 1px solid var(--inv-border-strong);
   background: var(--inv-bg-input);
   color: var(--inv-text-primary);
 }
-textarea { min-height: 5rem; }
-.form-control,
-.form-select {
-  background: var(--inv-bg-input);
-  border-color: var(--inv-border-subtle);
+.inv-app textarea { min-height: 5rem; }
+.inv-app .form-control,
+.inv-app .form-select {
+  max-width: 32rem;
+  background-color: var(--inv-bg-input);
+  border-color: var(--inv-border-strong);
   color: var(--inv-text-primary);
 }
-.form-control:focus,
-.form-select:focus {
-  background: var(--inv-bg-input);
+.inv-app .form-control:focus,
+.inv-app .form-select:focus {
+  background-color: var(--inv-bg-input);
   border-color: var(--inv-accent);
   color: var(--inv-text-primary);
   box-shadow: 0 0 0 0.2rem var(--inv-accent-soft);
 }
+.inv-app .form-control::placeholder { color: var(--inv-text-muted); opacity: 1; }
+.inv-app .form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b949e' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
 
-/* ---------- Buttons (legacy .btn + Bootstrap) ---------- */
-.btn {
+/* ---------- Buttons (legacy .btn + Bootstrap) ----------
+ * Do not restyle Bootstrap outline/primary variants via bare `.btn` —
+ * that fought btn-outline-light in the admin nav. */
+.inv-app .btn-outline {
   display: inline-block;
   padding: 0.45rem 0.85rem;
   border-radius: var(--inv-radius-sm);
   border: 1px solid var(--inv-border-subtle);
-  background: var(--inv-bg-soft);
+  background: transparent;
   color: var(--inv-text-primary);
   cursor: pointer;
   font-size: 0.875rem;
   text-decoration: none;
   line-height: 1.25;
 }
-.btn:hover { background: #30363d; color: var(--inv-text-primary); }
-.btn-outline { background: transparent; }
-.btn-primary {
+.inv-app .btn-outline:hover {
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-primary);
+}
+.inv-app .btn:not(.btn-outline-light):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle) {
+  background: var(--inv-bg-soft);
+  border-color: var(--inv-border-subtle);
+  color: var(--inv-text-primary);
+}
+.inv-app .btn:not(.btn-outline-light):not(.btn-primary):not(.btn-outline):not(.dropdown-toggle):hover {
+  background: #30363d;
+  color: var(--inv-text-primary);
+}
+.inv-app .btn-primary {
+  --bs-btn-color: #0d1117;
+  --bs-btn-bg: var(--inv-accent);
+  --bs-btn-border-color: var(--inv-accent);
+  --bs-btn-hover-color: #0d1117;
+  --bs-btn-hover-bg: var(--inv-accent-hover);
+  --bs-btn-hover-border-color: var(--inv-accent-hover);
+  --bs-btn-active-color: #0d1117;
+  --bs-btn-active-bg: var(--inv-accent-hover);
+  --bs-btn-active-border-color: var(--inv-accent-hover);
   background: var(--inv-accent);
   border-color: var(--inv-accent);
   color: #0d1117;
   font-weight: 600;
 }
-.btn-primary:hover {
+.inv-app .btn-primary:hover {
   background: var(--inv-accent-hover);
   border-color: var(--inv-accent-hover);
   color: #0d1117;
@@ -360,7 +414,15 @@ textarea { min-height: 5rem; }
   border: 1px solid #da3633;
 }
 
-code { font-family: var(--inv-mono); font-size: 0.85rem; }
+.inv-app code {
+  font-family: var(--inv-mono);
+  font-size: 0.85rem;
+  color: var(--inv-text-secondary);
+  background: var(--inv-bg-input);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
 
 /* ---------- Tables ---------- */
 .inv-table {

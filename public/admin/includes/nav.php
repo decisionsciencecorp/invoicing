@@ -22,9 +22,9 @@ $GLOBALS['inv_is_time_nav'] = $isTimeNav;
 $GLOBALS['inv_is_settings_nav'] = $isSettingsNav;
 $GLOBALS['inv_nav_path'] = $navPath;
 ?>
-<nav class="navbar navbar-expand-lg navbar-dark admin-nav">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
     <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand d-inline-flex align-items-center gap-2" href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">
+        <a class="navbar-brand fw-semibold d-inline-flex align-items-center gap-2" href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">
             <i class="bi bi-receipt" aria-hidden="true"></i>
             <span>Invoicing</span>
         </a>
@@ -33,25 +33,25 @@ $GLOBALS['inv_nav_path'] = $navPath;
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="invAdminNavbar">
-            <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center inv-nav-cluster">
-                <a class="btn btn-outline-light<?= $isDashNav ? ' active' : '' ?>"
+            <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center inv-nav-cluster py-3 py-lg-0">
+                <a class="btn btn-outline-light text-center text-lg-start<?= $isDashNav ? ' active' : '' ?>"
                    href="<?= htmlspecialchars(dsc_invoicing_href('admin/index.php'), ENT_QUOTES, 'UTF-8') ?>">
                     <i class="bi bi-house-door me-1" aria-hidden="true"></i>Dashboard
                 </a>
-                <a class="btn btn-outline-light<?= $isCompaniesNav ? ' active' : '' ?>"
+                <a class="btn btn-outline-light text-center text-lg-start<?= $isCompaniesNav ? ' active' : '' ?>"
                    href="<?= htmlspecialchars(dsc_invoicing_href('admin/companies.php'), ENT_QUOTES, 'UTF-8') ?>">
                     <i class="bi bi-buildings me-1" aria-hidden="true"></i>Companies
                 </a>
-                <a class="btn btn-outline-light<?= $isTimeNav ? ' active' : '' ?>"
+                <a class="btn btn-outline-light text-center text-lg-start<?= $isTimeNav ? ' active' : '' ?>"
                    href="<?= htmlspecialchars(dsc_invoicing_href('admin/time-entries.php'), ENT_QUOTES, 'UTF-8') ?>">
                     <i class="bi bi-clock me-1" aria-hidden="true"></i>Time
                 </a>
-                <a class="btn btn-outline-light<?= $isInvoicesNav ? ' active' : '' ?>"
+                <a class="btn btn-outline-light text-center text-lg-start<?= $isInvoicesNav ? ' active' : '' ?>"
                    href="<?= htmlspecialchars(dsc_invoicing_href('admin/invoices.php'), ENT_QUOTES, 'UTF-8') ?>">
                     <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>Invoices
                 </a>
                 <div class="dropdown inv-nav-end-dropdown">
-                    <button class="btn btn-outline-light dropdown-toggle<?= $isSettingsNav ? ' active' : '' ?>"
+                    <button class="btn btn-outline-light text-center text-lg-start dropdown-toggle<?= $isSettingsNav ? ' active' : '' ?>"
                             type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-gear me-1" aria-hidden="true"></i>Settings
                     </button>
@@ -64,13 +64,13 @@ $GLOBALS['inv_nav_path'] = $navPath;
                         <li><a class="dropdown-item" href="<?= htmlspecialchars(dsc_invoicing_href('admin/audit-log.php'), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-journal-text me-2" aria-hidden="true"></i>Audit log</a></li>
                     </ul>
                 </div>
-                <a class="btn btn-outline-light<?= $isHelpNav ? ' active' : '' ?>"
+                <a class="btn btn-outline-light text-center text-lg-start<?= $isHelpNav ? ' active' : '' ?>"
                    href="<?= htmlspecialchars(dsc_invoicing_href('admin/help.php'), ENT_QUOTES, 'UTF-8') ?>">
                     <i class="bi bi-question-circle me-1" aria-hidden="true"></i>Help
                 </a>
                 <hr class="d-lg-none border-secondary opacity-50 my-1 mx-0 w-100">
                 <?php if ($username !== ''): ?>
-                    <span class="navbar-text text-white-50 small px-lg-1"><?= htmlspecialchars($username, ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="navbar-text text-white-50 small px-lg-2 py-1 text-center text-lg-start"><?= htmlspecialchars($username, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php endif; ?>
                 <form method="POST" action="<?= htmlspecialchars(dsc_invoicing_href('admin/logout.php'), ENT_QUOTES, 'UTF-8') ?>" class="m-0">
                     <?= csrfField() ?>
