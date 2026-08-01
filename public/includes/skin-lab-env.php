@@ -80,7 +80,7 @@ function invSkinEffectiveSlug(?array $userRow = null): string
 function invSkinStylesheetHref(string $slug): string
 {
     $slug = invSkinNormalizeSlug($slug) ?? 'hey';
-    return dsc_invoicing_href('assets/skins/' . $slug . '.css') . '?v=3';
+    return dsc_invoicing_href('assets/skins/' . $slug . '.css') . '?v=4';
 }
 
 /** Light skins paint pale chrome; navbar-dark keeps a white hamburger → invisible. */

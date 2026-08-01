@@ -1,4 +1,4 @@
-/* Invoicing Skin Lab — ledger (ported from Docket / Tasks). */
+/* Invoicing — Ledger & Ink (Tasks/CRM parity). */
 /* Ledger & Ink — cream paper, serif editorial, ruled checklist */
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
 
@@ -6,8 +6,9 @@ html[data-skin-comp="ledger"] {
     --inv-bg-app: #faf6ef;
     --inv-bg-surface: #fffdf8;
     --inv-bg-soft: #f5f0e6;
-    --inv-bg-input: #ffffff;
     --inv-bg-elevated: #fffdf8;
+    --inv-bg-input: #ffffff;
+    --inv-link: #1a1814;
     --inv-border-subtle: rgba(26, 24, 20, 0.14);
     --inv-border-strong: rgba(26, 24, 20, 0.28);
     --inv-text-primary: #1a1814;
@@ -39,7 +40,7 @@ html[data-skin-comp="ledger"] h1,
 html[data-skin-comp="ledger"] .page-header__title h1,
 html[data-skin-comp="ledger"] .page-header__title h1,
 html[data-skin-comp="ledger"] .section-title,
-html[data-skin-comp="ledger"] .tabbar__title strong,
+html[data-skin-comp="ledger"] .inv-kpi__label,
 html[data-skin-comp="ledger"] .swimlane__header .status-pill {
     font-family: "Crimson Pro", Georgia, serif;
     font-weight: 700;
@@ -77,7 +78,7 @@ html[data-skin-comp="ledger"] .section-title {
     color: var(--inv-text-muted);
 }
 
-html[data-skin-comp="ledger"] .tabbar__item,
+html[data-skin-comp="ledger"] .info-box,
 html[data-skin-comp="ledger"] .admin-breadcrumb {
     border: none !important;
     border-bottom: 1px solid var(--inv-border-strong) !important;
@@ -92,7 +93,7 @@ html[data-skin-comp="ledger"] .surface,
 html[data-skin-comp="ledger"] .filter-bar,
 html[data-skin-comp="ledger"] .metadata-rail,
 html[data-skin-comp="ledger"] .surface,
-html[data-skin-comp="ledger"] .tabbar {
+html[data-skin-comp="ledger"] .info-box {
     border: 1px solid var(--inv-border-subtle) !important;
     border-radius: 0 !important;
     box-shadow: var(--inv-shadow-sm) !important;
@@ -163,7 +164,7 @@ html[data-skin-comp="ledger"] .form-control,
 html[data-skin-comp="ledger"] .form-select,
 html[data-skin-comp="ledger"] .badge,
 html[data-skin-comp="ledger"] .meta-chip,
-html[data-skin-comp="ledger"] .tabbar__item__title,
+html[data-skin-comp="ledger"] .inv-kpi__label,
 html[data-skin-comp="ledger"] .comment-body,
 html[data-skin-comp="ledger"] .metadata-rail__value,
 html[data-skin-comp="ledger"] .metadata-rail__label {
@@ -171,7 +172,7 @@ html[data-skin-comp="ledger"] .metadata-rail__label {
 }
 
 html[data-skin-comp="ledger"] .inv-kpi__meta,
-html[data-skin-comp="ledger"] .tabbar__item__meta,
+html[data-skin-comp="ledger"] .inv-kpi__meta,
 html[data-skin-comp="ledger"] .task-table tbody td,
 html[data-skin-comp="ledger"] .metadata-rail__value {
     font-variant-numeric: tabular-nums;
@@ -269,7 +270,7 @@ html[data-skin-comp="ledger"] .priority-chip {
     font-size: 0.68rem;
 }
 
-html[data-skin-comp="ledger"] .tabbar__item + .tabbar__item {
+html[data-skin-comp="ledger"] .info-box + .info-box {
     border-top: 1px solid var(--inv-border-subtle);
 }
 
@@ -277,12 +278,12 @@ html[data-skin-comp="ledger"] .todo-checkbox {
     border-radius: 2px;
 }
 
-html[data-skin-comp="ledger"] .tabbar {
+html[data-skin-comp="ledger"] .info-box {
     border: 1px solid var(--inv-border-subtle) !important;
     padding: 0.85rem 1rem;
 }
 
-html[data-skin-comp="ledger"] .tabbar__header {
+html[data-skin-comp="ledger"] .info-box h2 {
     border-bottom: 1px solid var(--inv-border-strong);
 }
 
@@ -336,39 +337,76 @@ html[data-skin-comp="ledger"] .inv-kpi:hover {
     border-color: var(--inv-border-strong) !important;
 }
 
-/* CRM login shell */
-html[data-skin-comp="ledger"] .crm-login-card {
+/* Invoicing login shell */
+html[data-skin-comp="ledger"] .inv-login-card {
     background: var(--inv-bg-surface) !important;
     border-color: var(--inv-border-subtle) !important;
     box-shadow: var(--inv-shadow-md);
     color: var(--inv-text-primary);
 }
-html[data-skin-comp="ledger"] .crm-login-brand__title {
+html[data-skin-comp="ledger"] .inv-login-brand {
     color: var(--inv-text-primary);
 }
-html[data-skin-comp="ledger"] .crm-login-brand__subtitle,
-html[data-skin-comp="ledger"] .crm-login-fineprint {
+html[data-skin-comp="ledger"] .inv-login-fineprint,
+html[data-skin-comp="ledger"] .inv-login-fineprint {
     color: var(--inv-text-muted);
 }
 
+/* Invoicing chrome */
 html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark {
+    border-color: transparent !important;
+    border-radius: 0;
     color: var(--inv-text-primary) !important;
-    border-color: var(--inv-border-strong) !important;
+    font-family: "Crimson Pro", Georgia, serif;
     font-weight: 600;
+    background: transparent !important;
 }
-html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark:hover,
-html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark.active {
-    background: var(--inv-accent) !important;
-    border-color: var(--inv-accent) !important;
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark:hover {
+    background: transparent !important;
+    color: var(--inv-accent-hover) !important;
+    border-bottom: 1px solid var(--inv-text-primary) !important;
+}
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark.active,
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark:active,
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-dark.show {
+    background: var(--inv-text-primary) !important;
+    border-color: var(--inv-text-primary) !important;
     color: #fff !important;
 }
 html[data-skin-comp="ledger"] .info-box,
 html[data-skin-comp="ledger"] .pay-card {
+    background: var(--inv-bg-elevated) !important;
+    border: 1px solid var(--inv-border-subtle) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--inv-shadow-sm) !important;
+    color: var(--inv-text-primary) !important;
+}
+html[data-skin-comp="ledger"] .form-check-label,
+html[data-skin-comp="ledger"] .form-label,
+html[data-skin-comp="ledger"] label {
+    color: var(--inv-text-primary) !important;
+}
+html[data-skin-comp="ledger"] .text-secondary,
+html[data-skin-comp="ledger"] .text-muted {
+    color: var(--inv-text-secondary) !important;
+}
+html[data-skin-comp="ledger"] .btn-outline {
+    border-radius: 0 !important;
+    border: 1px solid var(--inv-border-strong) !important;
     background: var(--inv-bg-surface) !important;
-    border-color: var(--inv-border-subtle) !important;
-    color: var(--inv-text-primary);
+    color: var(--inv-text-primary) !important;
+}
+html[data-skin-comp="ledger"] .btn-primary {
+    color: #fff !important;
 }
 html[data-skin-comp="ledger"] body.inv-app {
-    background: var(--inv-bg-app) !important;
+    background-color: var(--inv-bg-app) !important;
     color: var(--inv-text-primary) !important;
+}
+html[data-skin-comp="ledger"] .tabbar {
+    border: none !important;
+    border-bottom: 1px solid var(--inv-border-strong) !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
 }

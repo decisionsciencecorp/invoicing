@@ -365,7 +365,13 @@ body.inv-app {
   display: block;
   margin-top: 0.75rem;
   font-size: 0.875rem;
-  color: var(--inv-text-muted);
+  color: var(--inv-text-secondary);
+}
+/* Choice labels must stay readable (Appearance skin radios, etc.) */
+.inv-app .form-check-label,
+.inv-app label.form-check-label {
+  color: var(--inv-text-primary);
+  font-weight: 500;
 }
 .inv-app input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]),
 .inv-app select,
@@ -395,8 +401,13 @@ body.inv-app {
   box-shadow: 0 0 0 0.2rem var(--inv-accent-soft);
 }
 .inv-app .form-control::placeholder { color: var(--inv-text-muted); opacity: 1; }
+/* Single caret — without no-repeat the SVG tiles across the control */
 .inv-app .form-select {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b949e' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b949e' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.75rem center !important;
+  background-size: 16px 12px !important;
+  padding-right: 2.25rem !important;
 }
 
 /* ---------- Buttons (legacy .btn + Bootstrap) ----------
