@@ -4,6 +4,8 @@ declare(strict_types=1);
 /**
  * Public client invoice breakdown — canonical share link (no admin session).
  * GET /invoice.php?t=<public_token>
+ *
+ * Branding is fixed DSC (marketing) — not admin Appearance skins.
  */
 
 defined('DSC_INVOICING_SKIP_SESSION') || define('DSC_INVOICING_SKIP_SESSION', true);
@@ -80,30 +82,35 @@ if ($feeDue === '' && $isFlat) {
     $feeDue = $retainerDue;
 }
 
+$cssHref = dsc_invoicing_href('assets/css/invoice-public.css') . '?v=1';
+$logoHref = dsc_invoicing_href('assets/images/dsc-logo-white.svg');
+
 header('Content-Type: text/html; charset=utf-8');
 header('Link: <' . $canonical . '>; rel="canonical"');
 ?>
-<?php
-require_once __DIR__ . '/includes/skin-lab-env.php';
-$invSkinSlug = invSkinEffectiveSlug(null);
-$invBsTheme = invSkinBootstrapTheme($invSkinSlug);
-?>
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="<?= htmlspecialchars($invBsTheme, ENT_QUOTES, 'UTF-8') ?>" data-skin-comp="<?= htmlspecialchars($invSkinSlug, ENT_QUOTES, 'UTF-8') ?>">
+<html lang="en" class="inv-invoice">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?></title>
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/vendor/bootstrap/css/bootstrap.min.css') . '?v=5.3.3', ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(dsc_invoicing_href('assets/css/invoicing.css') . '?v=9', ENT_QUOTES, 'UTF-8') ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(invSkinStylesheetHref($invSkinSlug), ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="robots" content="noindex,nofollow">
+    <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?> — Decision Science Corp</title>
+    <link rel="stylesheet" href="<?= htmlspecialchars($cssHref, ENT_QUOTES, 'UTF-8') ?>">
 </head>
-<body class="inv-app">
+<body class="inv-invoice">
 <main class="invoice-page">
+    <header class="invoice-brand">
+        <img class="invoice-brand__mark" src="<?= htmlspecialchars($logoHref, ENT_QUOTES, 'UTF-8') ?>" width="48" height="48" alt="">
+        <div>
+            <span class="invoice-brand__text">Decision Science Corp</span>
+            <span class="invoice-brand__tag">Invoice</span>
+        </div>
+    </header>
+
     <div class="invoice-hero">
-        <p style="color:#8b949e;margin:0 0 .25rem;">Decision Science Corp</p>
-        <h1 style="margin:0 0 .35rem;"><?= htmlspecialchars($company, ENT_QUOTES, 'UTF-8') ?></h1>
-        <p style="margin:0;color:#8b949e;">
+        <p class="invoice-hero__eyebrow">Bill to</p>
+        <h1><?= htmlspecialchars($company, ENT_QUOTES, 'UTF-8') ?></h1>
+        <p class="invoice-hero__meta">
             <?= htmlspecialchars($engagement, ENT_QUOTES, 'UTF-8') ?>
             · Anchor month <code><?= htmlspecialchars($anchor, ENT_QUOTES, 'UTF-8') ?></code>
             <?php if ($isFlat): ?>
@@ -126,9 +133,9 @@ $invBsTheme = invSkinBootstrapTheme($invSkinSlug);
                 <?php endif; ?>
                 <span class="status-pill <?= htmlspecialchars($retainerStatus, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($retainerStatus, ENT_QUOTES, 'UTF-8') ?></span>
                 <?php if ($retainerPayUrl !== '' && $retainerStatus !== 'paid'): ?>
-                    <p style="margin:1rem 0 0;"><a class="btn" href="<?= htmlspecialchars($retainerPayUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener"><?= $isFlat ? 'Pay via Square' : 'Pay retainer via Square' ?></a></p>
+                    <p class="pay-actions"><a class="btn" href="<?= htmlspecialchars($retainerPayUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener"><?= $isFlat ? 'Pay via Square' : 'Pay retainer via Square' ?></a></p>
                 <?php elseif ($retainerStatus === 'paid'): ?>
-                    <p style="margin:1rem 0 0;color:#3fb950;">Paid — thank you.</p>
+                    <p class="paid-note">Paid — thank you.</p>
                 <?php endif; ?>
             </div>
         <?php endif; ?>
@@ -142,25 +149,30 @@ $invBsTheme = invSkinBootstrapTheme($invSkinSlug);
                 <?php endif; ?>
                 <span class="status-pill <?= htmlspecialchars($overageStatus !== '' ? $overageStatus : 'published', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($overageStatus !== '' ? $overageStatus : 'published', ENT_QUOTES, 'UTF-8') ?></span>
                 <?php if ($overagePayUrl !== '' && $overageStatus !== 'paid'): ?>
-                    <p style="margin:1rem 0 0;"><a class="btn" href="<?= htmlspecialchars($overagePayUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener">Pay overage via Square</a></p>
+                    <p class="pay-actions"><a class="btn" href="<?= htmlspecialchars($overagePayUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener">Pay overage via Square</a></p>
                 <?php elseif ($overageStatus === 'paid'): ?>
-                    <p style="margin:1rem 0 0;color:#3fb950;">Paid — thank you.</p>
+                    <p class="paid-note">Paid — thank you.</p>
                 <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
 
-    <p style="margin-top:1.25rem;font-weight:600;">Total due: $<?= number_format($totalCents / 100, 2) ?></p>
+    <p class="invoice-total">Total due: $<?= number_format($totalCents / 100, 2) ?></p>
 
     <?php if ($markdown !== ''): ?>
-        <section class="breakdown info-box">
-            <h2 style="margin-top:0;">Accounting breakdown</h2>
+        <section class="breakdown">
+            <h2>Accounting breakdown</h2>
             <?php if ($docTitle !== ''): ?>
-                <p style="color:#8b949e;margin-top:0;">From Tasks document: <?= htmlspecialchars($docTitle, ENT_QUOTES, 'UTF-8') ?></p>
+                <p class="breakdown__source">From Tasks document: <?= htmlspecialchars($docTitle, ENT_QUOTES, 'UTF-8') ?></p>
             <?php endif; ?>
             <div class="markdown-body"><?= dsc_markdown_to_html($markdown) ?></div>
         </section>
     <?php endif; ?>
+
+    <footer class="invoice-footer">
+        Questions? Contact Decision Science Corp ·
+        <a href="https://decisionsciencecorp.com/" rel="noopener">decisionsciencecorp.com</a>
+    </footer>
 </main>
 </body>
 </html>

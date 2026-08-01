@@ -1,0 +1,292 @@
+/* Public client invoice — fixed DSC brand (not admin skin themes).
+ * Tokens align with decisionsciencecorp.com marketing site.
+ * Cache-bust via ?v= on invoice.php link.
+ */
+
+html.inv-invoice {
+  color-scheme: dark;
+}
+
+body.inv-invoice {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: #fafafa;
+  background: #0a0a0a;
+  -webkit-font-smoothing: antialiased;
+}
+
+body.inv-invoice {
+  --inv-bg-app: #0a0a0a;
+  --inv-bg-surface: rgba(20, 20, 20, 0.92);
+  --inv-bg-soft: #1a1a1a;
+  --inv-bg-elevated: #141414;
+  --inv-border-subtle: rgba(255, 255, 255, 0.12);
+  --inv-border-strong: rgba(255, 255, 255, 0.22);
+  --inv-text-primary: #fafafa;
+  --inv-text-secondary: #e0e0e0;
+  --inv-text-muted: #c0c0c0;
+  --inv-accent: #8fa3b8;
+  --inv-accent-hover: #a8b9ca;
+  --inv-accent-solid: #4a5d73;
+  --inv-accent-solid-hover: #5a6f88;
+  --inv-link: #a8b9ca;
+  --inv-ok: #3fb950;
+  --inv-radius: 10px;
+  --inv-radius-sm: 6px;
+  --bs-body-bg: var(--inv-bg-app);
+  --bs-body-color: var(--inv-text-primary);
+  --bs-border-color: var(--inv-border-subtle);
+  --bs-link-color: var(--inv-link);
+}
+
+.inv-invoice a {
+  color: var(--inv-link);
+}
+.inv-invoice a:hover {
+  color: var(--inv-accent-hover);
+}
+
+.invoice-page {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.15rem 3rem;
+}
+
+.invoice-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--inv-border-subtle);
+}
+.invoice-brand__mark {
+  height: 2.1rem;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+.invoice-brand__text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--inv-text-primary);
+  line-height: 1.2;
+}
+.invoice-brand__tag {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--inv-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.invoice-hero {
+  margin-bottom: 1.5rem;
+}
+.invoice-hero__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--inv-text-muted);
+  font-size: 0.9rem;
+}
+.invoice-hero h1 {
+  margin: 0 0 0.4rem;
+  font-size: clamp(1.55rem, 3.5vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--inv-text-primary);
+  line-height: 1.2;
+}
+.invoice-hero__meta {
+  margin: 0;
+  color: var(--inv-text-muted);
+  font-size: 0.95rem;
+}
+.invoice-hero__meta code {
+  font-size: 0.9em;
+  color: var(--inv-text-secondary);
+  background: var(--inv-bg-soft);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.invoice-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.pay-card {
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius);
+  padding: 1.15rem 1.2rem;
+  background: var(--inv-bg-surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+.pay-card.paid {
+  border-color: rgba(63, 185, 80, 0.45);
+}
+.pay-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--inv-text-secondary);
+}
+.pay-card .amount {
+  font-size: 1.65rem;
+  font-weight: 650;
+  margin: 0.25rem 0 0.75rem;
+  letter-spacing: -0.02em;
+  color: var(--inv-text-primary);
+}
+.pay-card .due {
+  color: var(--inv-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+.pay-card .paid-note {
+  margin: 1rem 0 0;
+  color: var(--inv-ok);
+}
+.pay-card .pay-actions {
+  margin: 1rem 0 0;
+}
+
+.invoice-total {
+  margin-top: 1.35rem;
+  font-weight: 650;
+  font-size: 1.1rem;
+  color: var(--inv-text-primary);
+}
+
+.invoice-page .breakdown {
+  margin-top: 2rem;
+  padding: 1.15rem 1.2rem;
+  background: var(--inv-bg-surface);
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius);
+}
+.invoice-page .breakdown h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+.invoice-page .breakdown__source {
+  color: var(--inv-text-muted);
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+/* Status pills on the public page (class names match invoice.php markup) */
+.inv-invoice .status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-muted);
+  border: 1px solid var(--inv-border-subtle);
+}
+.inv-invoice .status-pill.paid,
+.inv-invoice .status-pill.PAYMENT_SUCCESS {
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.12);
+  border-color: rgba(63, 185, 80, 0.35);
+}
+.inv-invoice .status-pill.partial,
+.inv-invoice .status-pill.PARTIALLY_PAID {
+  color: #d29922;
+  background: rgba(210, 153, 34, 0.12);
+  border-color: rgba(210, 153, 34, 0.35);
+}
+.inv-invoice .status-pill.canceled,
+.inv-invoice .status-pill.failed {
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.12);
+  border-color: rgba(248, 81, 73, 0.35);
+}
+
+/* Pay CTA — DSC solid accent, not admin skin primary */
+.inv-invoice a.btn,
+.inv-invoice .btn {
+  display: inline-block;
+  padding: 0.55rem 1rem;
+  border-radius: var(--inv-radius-sm);
+  border: 1px solid transparent;
+  background: var(--inv-accent-solid);
+  color: #fafafa !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  line-height: 1.3;
+}
+.inv-invoice a.btn:hover,
+.inv-invoice .btn:hover {
+  background: var(--inv-accent-solid-hover);
+  color: #fff !important;
+}
+
+.inv-invoice .markdown-body {
+  color: var(--inv-text-secondary);
+}
+.inv-invoice .markdown-body h1,
+.inv-invoice .markdown-body h2,
+.inv-invoice .markdown-body h3,
+.inv-invoice .markdown-body h4,
+.inv-invoice .markdown-body h5,
+.inv-invoice .markdown-body h6 {
+  color: var(--inv-text-primary);
+}
+.inv-invoice .markdown-body a {
+  color: var(--inv-link);
+}
+.inv-invoice .markdown-body code {
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-primary);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.inv-invoice .markdown-body pre {
+  background: #050505;
+  border: 1px solid var(--inv-border-subtle);
+  border-radius: var(--inv-radius-sm);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+}
+.inv-invoice .markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+}
+.inv-invoice .markdown-body th,
+.inv-invoice .markdown-body td {
+  border: 1px solid var(--inv-border-subtle);
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+}
+.inv-invoice .markdown-body th {
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-primary);
+  font-weight: 600;
+}
+
+.invoice-footer {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--inv-border-subtle);
+  color: var(--inv-text-muted);
+  font-size: 0.85rem;
+}
+.invoice-footer a {
+  color: var(--inv-accent);
+}
