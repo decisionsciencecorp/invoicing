@@ -82,7 +82,7 @@ if ($feeDue === '' && $isFlat) {
     $feeDue = $retainerDue;
 }
 
-$cssHref = dsc_invoicing_href('assets/css/invoice-public.css') . '?v=1';
+$cssHref = dsc_invoicing_href('assets/css/invoice-public.css') . '?v=2';
 $logoHref = dsc_invoicing_href('assets/images/dsc-logo-white.svg');
 
 header('Content-Type: text/html; charset=utf-8');
@@ -100,11 +100,11 @@ header('Link: <' . $canonical . '>; rel="canonical"');
 <body class="inv-invoice">
 <main class="invoice-page">
     <header class="invoice-brand">
-        <img class="invoice-brand__mark" src="<?= htmlspecialchars($logoHref, ENT_QUOTES, 'UTF-8') ?>" width="48" height="48" alt="">
-        <div>
+        <div class="invoice-brand__lockup" aria-label="Decision Science Corp">
+            <img class="invoice-brand__mark" src="<?= htmlspecialchars($logoHref, ENT_QUOTES, 'UTF-8') ?>" alt="">
             <span class="invoice-brand__text">Decision Science Corp</span>
-            <span class="invoice-brand__tag">Invoice</span>
         </div>
+        <p class="invoice-brand__tag">Invoice</p>
     </header>
 
     <div class="invoice-hero">

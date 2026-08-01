@@ -1,16 +1,42 @@
 /* Public client invoice — fixed DSC brand (not admin skin themes).
- * Tokens align with decisionsciencecorp.com marketing site.
+ * Logo lockup follows decisionsciencecorp.com brand guide / nav-logo math:
+ * terminal bar height == “D” cap height; wordmark sits on the bar centerline.
  * Cache-bust via ?v= on invoice.php link.
  */
 
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/Inter-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/Inter-Medium.woff2") format("woff2");
+}
+
 html.inv-invoice {
   color-scheme: dark;
+  /*
+   * Inter Medium @ wordmark size: glyph "D" ≈ 0.7222em tall.
+   * Trimmed mark terminal bar ≈ 0.2725 of mark height → scale mark so bar == D.
+   * Bar center sits ~0.733 of mark height (not geometric center).
+   */
+  --brand-wordmark-d-height-em: 0.7222;
+  --brand-logo-bar-thickness-ratio: 0.2725;
+  --brand-mark-height-em: calc(var(--brand-wordmark-d-height-em) / var(--brand-logo-bar-thickness-ratio));
+  --brand-logo-bar-center-ratio: 0.7331;
+  --brand-logo-bar-center-offset-ratio: calc(var(--brand-logo-bar-center-ratio) - 0.5);
 }
 
 body.inv-invoice {
   margin: 0;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 1.0625rem;
   line-height: 1.65;
   color: #fafafa;
@@ -56,29 +82,39 @@ body.inv-invoice {
 }
 
 .invoice-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
   margin-bottom: 1.75rem;
   padding-bottom: 1.1rem;
   border-bottom: 1px solid var(--inv-border-subtle);
 }
+/* Wave → bar → wordmark (brand guide §4–5 / site .nav-logo) */
+.invoice-brand__lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 1.125rem;
+  color: var(--inv-text-primary);
+}
 .invoice-brand__mark {
-  height: 2.1rem;
+  height: calc(var(--brand-mark-height-em) * 1em);
   width: auto;
   display: block;
   flex-shrink: 0;
+  opacity: 0.95;
+  align-self: center;
 }
 .invoice-brand__text {
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--inv-text-primary);
-  line-height: 1.2;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 1em;
+  font-weight: 500; /* brand guide: Regular or Medium — never Bold */
+  letter-spacing: 0.03em; /* slight positive tracking */
+  line-height: 1.15;
+  margin-left: -0.02em;
+  white-space: nowrap;
+  /* Align to terminal bar centerline, not mark geometric center */
+  transform: translateY(calc(var(--brand-logo-bar-center-offset-ratio) * var(--brand-mark-height-em) * 1em));
 }
 .invoice-brand__tag {
-  display: block;
-  margin-top: 0.15rem;
+  margin: 0.55rem 0 0;
   font-size: 0.8rem;
   font-weight: 400;
   color: var(--inv-text-muted);
