@@ -19,8 +19,9 @@ When you publish a monthly invoice, attach the **Tasks accounting document** (ma
 
 1. Engagement must be `flat_tier` with Tier 1 / Tier 2 amounts set
 2. Admin → Invoices — pick engagement, anchor month, **tier** (default Tier 1)
-3. Tasks accounting document is **optional**
-4. Client page shows a single **program fee** card (not retainer/overage split)
+3. Tasks accounting document is **optional at publish**, but **required for a finished client page**: attach a real breakdown in the [Doc #964](https://tasks.decisionsciencecorp.com/admin/doc.php?id=964) format (exemplar [Doc #963](https://tasks.decisionsciencecorp.com/admin/doc.php?id=963) — AcquireROI July 2026). Do **not** leave Square restore / ops notes as `accounting_markdown`.
+4. Client page shows a single **program fee** card (not retainer/overage split) on a **DSC-branded** public shell (not admin Appearance skins)
+5. Share the permanent `invoice.php?t=` URL; unpaid months show a pay button on that same page
 
 ## Admin flow
 
