@@ -1,0 +1,6 @@
+# DSC Invoicing — not a public marketing site.
+# Client invoice links are tokenized but still semi-sensitive; do not index.
+User-agent: *
+Disallow: /
+
+# No sitemap.

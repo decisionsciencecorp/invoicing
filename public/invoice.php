@@ -93,7 +93,7 @@ header('Link: <' . $canonical . '>; rel="canonical"');
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="noindex,nofollow">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
     <title><?= htmlspecialchars($company !== '' ? $company . ' — Invoice' : 'Invoice', ENT_QUOTES, 'UTF-8') ?> — Decision Science Corp</title>
     <link rel="stylesheet" href="<?= htmlspecialchars($cssHref, ENT_QUOTES, 'UTF-8') ?>">
 </head>
