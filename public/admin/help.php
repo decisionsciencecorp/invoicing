@@ -47,7 +47,7 @@ inv_render_page_header([
             <ul>
                 <li><strong>Companies / engagements</strong> — who you bill and how (hourly retainer+overage or flat/tier).</li>
                 <li><strong>Time</strong> — optional local time entries; hourly invoices still require a Tasks accounting document.</li>
-                <li><strong>Invoices</strong> — publish, list, unpaid/AR, refresh status, cancel unpaid Square invoices.</li>
+                <li><strong>Invoices</strong> — publish, <strong>Drafts</strong> (reopen preview, no Square), list, unpaid/AR, refresh/cancel.</li>
                 <li><strong>Settings</strong> — users, API keys, Square + webhooks, audit log.</li>
             </ul>
         <?php elseif ($section === 'publish'): ?>
@@ -57,7 +57,8 @@ inv_render_page_header([
                 <li>Pick an active engagement and billing month.</li>
                 <li><strong>Hourly:</strong> select a Tasks time-log / accounting document (required). The markdown becomes the client page body.</li>
                 <li><strong>Flat/tier:</strong> pick Tier 1 or Tier 2; accounting doc is optional.</li>
-                <li>Confirm the preview totals, then <strong>View draft details</strong> (full client-page layout, no Square). Publish only when you are ready.</li>
+                <li>Click <strong>Open draft preview</strong> or <strong>Save to Drafts tab</strong> (full client-page layout, no Square).</li>
+                <li>Reopen anytime from <strong>Invoices → Drafts → Open draft</strong>. Publish to Square only when you are ready.</li>
             </ol>
             <p>Do not re-publish a month that already has a paid Square invoice for that engagement.</p>
         <?php elseif ($section === 'flat-tier'): ?>

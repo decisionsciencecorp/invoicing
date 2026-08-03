@@ -198,6 +198,7 @@ function initializeDatabase(bool $runColumnMigrations = true): void {
             . 'WHERE public_token IS NOT NULL AND TRIM(public_token) != \'\''
         );
         dsc_invoicing_ensure_audit_log_table($db);
+        dsc_invoicing_ensure_invoice_drafts_table($db);
         dsc_invoicing_ensure_admin_users_skin_slug_column($db);
     }
 
@@ -212,8 +213,35 @@ function initializeDatabase(bool $runColumnMigrations = true): void {
         dsc_invoicing_ensure_outbound_invoice_breakdown_columns($db);
         dsc_invoicing_ensure_outbound_flat_tier_columns($db);
         dsc_invoicing_ensure_audit_log_table($db);
-        set_config('schema_version', '5');
+        dsc_invoicing_ensure_invoice_drafts_table($db);
+        set_config('schema_version', '6');
     }
+}
+
+/** Local-only invoice drafts (no Square). Reopen via Invoices → Drafts. */
+function dsc_invoicing_ensure_invoice_drafts_table(SQLite3 $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS invoice_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            engagement_id INTEGER NOT NULL REFERENCES engagements(id) ON DELETE CASCADE,
+            anchor_month TEXT NOT NULL,
+            tasks_document_id INTEGER,
+            tier_key TEXT NOT NULL DEFAULT \'tier1\',
+            label TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )'
+    );
+    $db->exec(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_invoice_drafts_eng_anchor_doc_tier '
+        . 'ON invoice_drafts(engagement_id, anchor_month, IFNULL(tasks_document_id, 0), tier_key)'
+    );
 }
 
 /**

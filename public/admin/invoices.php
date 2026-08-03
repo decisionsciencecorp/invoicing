@@ -111,6 +111,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'cancel_
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'save_draft') {
+    requireCsrfToken();
+    $forceTab = 'drafts';
+    $eid = (int) ($_POST['engagement_id'] ?? 0);
+    $anchor = trim((string) ($_POST['anchor_month'] ?? ''));
+    $tasksDocId = (int) ($_POST['tasks_document_id'] ?? 0);
+    $tierKey = trim((string) ($_POST['tier_key'] ?? 'tier1'));
+    $res = dsc_billing_upsert_invoice_draft(
+        $db,
+        $eid,
+        $anchor,
+        $tasksDocId > 0 ? $tasksDocId : null,
+        $tierKey !== '' ? $tierKey : 'tier1'
+    );
+    if (!empty($res['ok'])) {
+        $flash = 'Draft saved. Open it anytime from the Drafts tab (no Square link created).';
+        $flashType = 'ok';
+    } else {
+        $flash = $res['error'] ?? 'Could not save draft.';
+        $flashType = 'err';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'delete_draft') {
+    requireCsrfToken();
+    $forceTab = 'drafts';
+    $res = dsc_billing_delete_invoice_draft($db, (int) ($_POST['draft_id'] ?? 0));
+    if (!empty($res['ok'])) {
+        $flash = 'Draft removed.';
+        $flashType = 'ok';
+    } else {
+        $flash = $res['error'] ?? 'Could not remove draft.';
+        $flashType = 'err';
+    }
+}
+
 $selE = (int) ($_GET['engagement_id'] ?? ($_POST['engagement_id'] ?? 0));
 $selM = trim((string) ($_GET['anchor_month'] ?? ($_POST['anchor_month'] ?? gmdate('Y-m'))));
 $selDoc = (int) ($_GET['tasks_document_id'] ?? ($_POST['tasks_document_id'] ?? 0));
@@ -120,7 +156,7 @@ if (!dsc_billing_valid_month($selM)) {
 }
 
 $tab = strtolower(trim((string) ($forceTab ?? $_GET['tab'] ?? 'publish')));
-if (!in_array($tab, ['publish', 'list', 'unpaid'], true)) {
+if (!in_array($tab, ['publish', 'drafts', 'list', 'unpaid'], true)) {
     $tab = 'publish';
 }
 $listPageSize = 25;
@@ -191,6 +227,15 @@ $tasksBase = dsc_tasks_api_config()['base_url'] !== ''
     ? dsc_tasks_api_config()['base_url']
     : 'https://tasks.decisionsciencecorp.com';
 
+dsc_invoicing_ensure_invoice_drafts_table($db);
+$draftRows = ($tab === 'drafts') ? dsc_billing_list_invoice_drafts($db) : [];
+if ($tab !== 'drafts') {
+    dsc_billing_sync_drafts_from_uninvoiced_time($db);
+}
+$draftCount = $tab === 'drafts'
+    ? count($draftRows)
+    : (int) $db->querySingle('SELECT COUNT(*) FROM invoice_drafts');
+
 $unpaidRows = $tab === 'unpaid' ? dsc_billing_list_unpaid_aging($db) : [];
 $unpaidCount = $tab === 'unpaid'
     ? count($unpaidRows)
@@ -200,6 +245,7 @@ $unpaidCount = $tab === 'unpaid'
 
 $invoicesBase = dsc_invoicing_href('admin/invoices.php');
 $publishTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=publish';
+$draftsTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=drafts';
 $listTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=list';
 $unpaidTabUrl = $invoicesBase . (str_contains($invoicesBase, '?') ? '&' : '?') . 'tab=unpaid';
 $listPageUrl = static function (int $page) use ($invoicesBase): string {
@@ -221,6 +267,9 @@ inv_render_page_header([
 
 <nav class="tabbar" aria-label="Invoices sections">
     <a href="<?= htmlspecialchars($publishTabUrl, ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'publish' ? 'active' : '' ?>">Publish</a>
+    <a href="<?= htmlspecialchars($draftsTabUrl, ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'drafts' ? 'active' : '' ?>">
+        Drafts<?= $draftCount > 0 ? ' (' . $draftCount . ')' : '' ?>
+    </a>
     <a href="<?= htmlspecialchars($listPageUrl(1), ENT_QUOTES, 'UTF-8') ?>" class="<?= $tab === 'list' ? 'active' : '' ?>">
         List<?= $listTotal > 0 ? ' (' . $listTotal . ')' : '' ?>
     </a>
@@ -333,11 +382,24 @@ inv_render_page_header([
             ], static fn ($v) => $v !== null && $v !== ''));
             $draftHref = 'invoice-draft.php?' . $draftQs;
             ?>
-            <p style="margin:1rem 0 0;">
-                <a class="btn btn-outline" href="<?= htmlspecialchars($draftHref, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">
-                    View draft details
+            <p style="margin:1rem 0 0;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">
+                <a class="btn" href="<?= htmlspecialchars($draftHref, ENT_QUOTES, 'UTF-8') ?>">
+                    Open draft preview
                 </a>
-                <span style="color:#8b949e;font-size:.875rem;margin-left:.5rem;">Same layout as the client page — no Square links, nothing published.</span>
+                <form method="POST" style="display:inline;margin:0;">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="form" value="save_draft">
+                    <input type="hidden" name="engagement_id" value="<?= (int) $selE ?>">
+                    <input type="hidden" name="anchor_month" value="<?= htmlspecialchars($selM, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="tasks_document_id" value="<?= (int) $selDoc ?>">
+                    <?php if ($previewFlat): ?>
+                        <input type="hidden" name="tier_key" value="<?= htmlspecialchars($selTier, ENT_QUOTES, 'UTF-8') ?>">
+                    <?php endif; ?>
+                    <button type="submit" class="btn btn-outline">Save to Drafts tab</button>
+                </form>
+            </p>
+            <p style="color:#8b949e;font-size:.875rem;margin:.5rem 0 0;">
+                Opens the full client-page layout. No Square. Reopen later from <strong>Drafts</strong>.
             </p>
             <?php if ($selE > 0 && $preview['total_cents'] > 0): ?>
                 <?php $canPublish = $previewFlat || $selDoc > 0; ?>
@@ -359,6 +421,70 @@ inv_render_page_header([
                 <p class="message err" style="margin-top:.75rem;margin-bottom:0;">Nothing to bill for this pairing.</p>
             <?php endif; ?>
         <?php endif; ?>
+    <?php endif; ?>
+</div>
+<?php elseif ($tab === 'drafts'): ?>
+<div class="info-box">
+    <h2 style="margin-top:0;">Draft invoices</h2>
+    <p style="color:#8b949e;font-size:.875rem;margin:0 0 1rem;">
+        Local drafts only — <strong>no Square payment links</strong>. Click <strong>Open draft</strong> to preview the full invoice page.
+        Uninvoiced time logs (like PSF July hours) show up here automatically.
+    </p>
+    <?php if ($draftRows === []): ?>
+        <p style="margin:0;color:#8b949e;">No drafts yet. Use Publish → Open draft preview / Save to Drafts, or log time that has not been invoiced.</p>
+    <?php else: ?>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                <thead>
+                    <tr style="text-align:left;border-bottom:1px solid #30363d;">
+                        <th style="padding:0.4rem;">Draft</th>
+                        <th style="padding:0.4rem;">Company / engagement</th>
+                        <th style="padding:0.4rem;">Billing month</th>
+                        <th style="padding:0.4rem;text-align:right;">Est. total</th>
+                        <th style="padding:0.4rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($draftRows as $d): ?>
+                        <tr style="border-bottom:1px solid #21262d;">
+                            <td style="padding:0.5rem 0;">
+                                <strong><?= htmlspecialchars((string) ($d['label'] ?? 'Draft'), ENT_QUOTES, 'UTF-8') ?></strong>
+                                <div style="color:#8b949e;font-size:.75rem;margin-top:.15rem;">status: draft · no Square</div>
+                            </td>
+                            <td style="padding:0.5rem 0;">
+                                <?= htmlspecialchars((string) ($d['company_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                <span style="color:#8b949e;"> · <?= htmlspecialchars((string) ($d['engagement_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
+                            </td>
+                            <td style="padding:0.5rem 0;"><code><?= htmlspecialchars((string) ($d['anchor_month'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code>
+                                <?php if (!empty($d['tasks_document_id'])): ?>
+                                    <div style="color:#8b949e;font-size:.75rem;">Tasks #<?= (int) $d['tasks_document_id'] ?></div>
+                                <?php endif; ?>
+                            </td>
+                            <td style="padding:0.5rem 0;text-align:right;">
+                                <?php if (!empty($d['preview_error'])): ?>
+                                    <span style="color:#f85149;">—</span>
+                                <?php else: ?>
+                                    $<?= number_format(((int) ($d['preview_total_cents'] ?? 0)) / 100, 2) ?>
+                                <?php endif; ?>
+                            </td>
+                            <td style="padding:0.5rem 0;">
+                                <a class="btn" style="padding:0.35rem 0.75rem;display:inline-block;text-decoration:none;"
+                                   href="<?= htmlspecialchars((string) ($d['open_url'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>">
+                                    Open draft
+                                </a>
+                                <form method="POST" style="display:inline;margin-left:.35rem;"
+                                      onsubmit="return confirm('Remove this draft? (Does not affect Square or published invoices.)');">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="form" value="delete_draft">
+                                    <input type="hidden" name="draft_id" value="<?= (int) $d['id'] ?>">
+                                    <button type="submit" class="btn btn-outline" style="padding:0.35rem 0.6rem;">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     <?php endif; ?>
 </div>
 <?php elseif ($tab === 'unpaid'): ?>

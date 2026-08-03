@@ -56,8 +56,20 @@ function dsc_invoice_render_page(array $view): void {
 <body class="inv-invoice<?= $isDraft ? ' inv-invoice--draft' : '' ?>">
 <main class="invoice-page">
     <?php if ($isDraft): ?>
+        <?php
+        $adminBar = is_array($view['draft_admin_bar'] ?? null) ? $view['draft_admin_bar'] : null;
+        ?>
         <p class="invoice-draft-banner" role="status">
             Draft preview — not published. No Square payment links. Nothing has been sent to the client.
+            <?php if ($adminBar !== null): ?>
+                <br>
+                <a href="<?= htmlspecialchars((string) ($adminBar['drafts_href'] ?? 'invoices.php?tab=drafts'), ENT_QUOTES, 'UTF-8') ?>">← Back to Drafts</a>
+                ·
+                <a href="<?= htmlspecialchars((string) ($adminBar['publish_href'] ?? 'invoices.php?tab=publish'), ENT_QUOTES, 'UTF-8') ?>">Publish tab</a>
+                <?php if (!empty($adminBar['saved'])): ?>
+                    · Saved — reopen anytime from <strong>Invoices → Drafts</strong>
+                <?php endif; ?>
+            <?php endif; ?>
         </p>
     <?php endif; ?>
 
