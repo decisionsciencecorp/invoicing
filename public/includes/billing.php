@@ -24,6 +24,17 @@ function dsc_billing_prev_month(string $ym): ?string {
     return $dt->modify('-1 month')->format('Y-m');
 }
 
+function dsc_billing_next_month(string $ym): ?string {
+    if (!dsc_billing_valid_month($ym)) {
+        return null;
+    }
+    $dt = DateTimeImmutable::createFromFormat('!Y-m', $ym);
+    if (!$dt) {
+        return null;
+    }
+    return $dt->modify('+1 month')->format('Y-m');
+}
+
 function dsc_billing_month_last_day_iso(string $ym): string {
     $dt = DateTimeImmutable::createFromFormat('!Y-m', $ym);
     if (!$dt) {
@@ -397,6 +408,213 @@ function dsc_billing_combined_totals(
         'overage_hours' => $overageHours,
         'engagement_name' => (string) ($e['engagement_name'] ?? ''),
     ];
+}
+
+/**
+ * Upsert a local invoice draft (no Square). Returns draft id.
+ *
+ * @return array{ok:true, draft_id:int}|array{ok:false, error:string}
+ */
+function dsc_billing_upsert_invoice_draft(
+    SQLite3 $db,
+    int $engagementId,
+    string $anchorMonth,
+    ?int $tasksDocumentId = null,
+    ?string $tierKey = null,
+    ?string $label = null,
+    ?string $notes = null,
+): array {
+    dsc_invoicing_ensure_invoice_drafts_table($db);
+    if ($engagementId <= 0 || !dsc_billing_valid_month($anchorMonth)) {
+        return ['ok' => false, 'error' => 'Engagement and billing month (YYYY-MM) required.'];
+    }
+    $tier = dsc_billing_normalize_tier_key($tierKey);
+    $docId = ($tasksDocumentId !== null && $tasksDocumentId > 0) ? $tasksDocumentId : null;
+
+    $find = $db->prepare(
+        'SELECT id FROM invoice_drafts WHERE engagement_id = :e AND anchor_month = :a '
+        . 'AND IFNULL(tasks_document_id, 0) = :d AND tier_key = :t LIMIT 1'
+    );
+    $find->bindValue(':e', $engagementId, SQLITE3_INTEGER);
+    $find->bindValue(':a', $anchorMonth, SQLITE3_TEXT);
+    $find->bindValue(':d', $docId ?? 0, SQLITE3_INTEGER);
+    $find->bindValue(':t', $tier, SQLITE3_TEXT);
+    $existing = $find->execute()->fetchArray(SQLITE3_ASSOC);
+
+    if ($existing) {
+        $id = (int) $existing['id'];
+        if ($label !== null && trim($label) !== '') {
+            $up = $db->prepare(
+                'UPDATE invoice_drafts SET label = :label, notes = COALESCE(:notes, notes), '
+                . 'updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+            );
+            $up->bindValue(':label', trim($label), SQLITE3_TEXT);
+        } else {
+            $up = $db->prepare(
+                'UPDATE invoice_drafts SET notes = COALESCE(:notes, notes), '
+                . 'updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+            );
+        }
+        if ($notes !== null && $notes !== '') {
+            $up->bindValue(':notes', $notes, SQLITE3_TEXT);
+        } else {
+            $up->bindValue(':notes', null, SQLITE3_NULL);
+        }
+        $up->bindValue(':id', $id, SQLITE3_INTEGER);
+        $up->execute();
+        return ['ok' => true, 'draft_id' => $id];
+    }
+
+    if ($label === null || trim($label) === '') {
+        $totals = dsc_billing_combined_totals($db, $engagementId, $anchorMonth, $tier);
+        if (!isset($totals['error'])) {
+            $label = dsc_billing_outbound_period_label([
+                'anchor_month' => $anchorMonth,
+                'overage_month' => (string) ($totals['overage_month'] ?? ''),
+                'retainer_amount_cents' => (int) ($totals['retainer_amount_cents'] ?? 0),
+                'overage_amount_cents' => (int) ($totals['overage_amount_cents'] ?? 0),
+                'billing_mode' => (string) ($totals['billing_mode'] ?? 'hourly'),
+                'tier_key' => $tier,
+            ]);
+        } else {
+            $label = dsc_billing_format_month_human($anchorMonth) . ' draft';
+        }
+    }
+
+    $ins = $db->prepare(
+        'INSERT INTO invoice_drafts (engagement_id, anchor_month, tasks_document_id, tier_key, label, notes) '
+        . 'VALUES (:e, :a, :d, :t, :label, :notes)'
+    );
+    $ins->bindValue(':e', $engagementId, SQLITE3_INTEGER);
+    $ins->bindValue(':a', $anchorMonth, SQLITE3_TEXT);
+    if ($docId === null) {
+        $ins->bindValue(':d', null, SQLITE3_NULL);
+    } else {
+        $ins->bindValue(':d', $docId, SQLITE3_INTEGER);
+    }
+    $ins->bindValue(':t', $tier, SQLITE3_TEXT);
+    $ins->bindValue(':label', (string) $label, SQLITE3_TEXT);
+    if ($notes === null || $notes === '') {
+        $ins->bindValue(':notes', null, SQLITE3_NULL);
+    } else {
+        $ins->bindValue(':notes', $notes, SQLITE3_TEXT);
+    }
+    if (!$ins->execute()) {
+        return ['ok' => false, 'error' => 'Could not save draft: ' . $db->lastErrorMsg()];
+    }
+    return ['ok' => true, 'draft_id' => (int) $db->lastInsertRowID()];
+}
+
+/**
+ * @return list<array<string,mixed>>
+ */
+function dsc_billing_list_invoice_drafts(SQLite3 $db): array {
+    dsc_invoicing_ensure_invoice_drafts_table($db);
+    dsc_billing_sync_drafts_from_uninvoiced_time($db);
+    $sql = 'SELECT d.*, e.name AS engagement_name, c.name AS company_name, '
+        . 'COALESCE(e.billing_mode, \'hourly\') AS billing_mode '
+        . 'FROM invoice_drafts d '
+        . 'JOIN engagements e ON e.id = d.engagement_id '
+        . 'JOIN companies c ON c.id = e.company_id '
+        . 'ORDER BY d.updated_at DESC, d.id DESC';
+    $r = $db->query($sql);
+    $out = [];
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        $row['id'] = (int) $row['id'];
+        $row['engagement_id'] = (int) $row['engagement_id'];
+        $row['tasks_document_id'] = isset($row['tasks_document_id']) && $row['tasks_document_id'] !== null
+            ? (int) $row['tasks_document_id']
+            : null;
+        $totals = dsc_billing_combined_totals(
+            $db,
+            (int) $row['engagement_id'],
+            (string) $row['anchor_month'],
+            (string) ($row['tier_key'] ?? 'tier1')
+        );
+        $row['preview_total_cents'] = isset($totals['error']) ? 0 : (int) ($totals['total_cents'] ?? 0);
+        $row['preview_error'] = $totals['error'] ?? null;
+        if (trim((string) ($row['label'] ?? '')) === '' && !isset($totals['error'])) {
+            $row['label'] = dsc_billing_outbound_period_label([
+                'anchor_month' => (string) $row['anchor_month'],
+                'overage_month' => (string) ($totals['overage_month'] ?? ''),
+                'retainer_amount_cents' => (int) ($totals['retainer_amount_cents'] ?? 0),
+                'overage_amount_cents' => (int) ($totals['overage_amount_cents'] ?? 0),
+                'billing_mode' => (string) ($totals['billing_mode'] ?? 'hourly'),
+                'tier_key' => (string) ($row['tier_key'] ?? 'tier1'),
+            ]);
+        }
+        $qs = http_build_query(array_filter([
+            'engagement_id' => (int) $row['engagement_id'],
+            'anchor_month' => (string) $row['anchor_month'],
+            'tasks_document_id' => $row['tasks_document_id'],
+            'tier_key' => (string) ($row['tier_key'] ?? 'tier1'),
+        ], static fn ($v) => $v !== null && $v !== ''));
+        $row['open_url'] = 'invoice-draft.php?' . $qs;
+        $out[] = $row;
+    }
+    return $out;
+}
+
+function dsc_billing_delete_invoice_draft(SQLite3 $db, int $draftId): array {
+    dsc_invoicing_ensure_invoice_drafts_table($db);
+    if ($draftId <= 0) {
+        return ['ok' => false, 'error' => 'Invalid draft id.'];
+    }
+    $st = $db->prepare('DELETE FROM invoice_drafts WHERE id = :id');
+    $st->bindValue(':id', $draftId, SQLITE3_INTEGER);
+    $st->execute();
+    return ['ok' => true];
+}
+
+/**
+ * Create drafts from time entries that have not been sent to Square yet.
+ * Anchor month = month after the logged billing period (retainer for next + overage for logged).
+ */
+function dsc_billing_sync_drafts_from_uninvoiced_time(SQLite3 $db): void {
+    dsc_invoicing_ensure_invoice_drafts_table($db);
+    $sql = 'SELECT te.id, te.engagement_id, te.billing_period_month, te.hours, te.memo, '
+        . 'e.name AS engagement_name, c.name AS company_name '
+        . 'FROM time_entries te '
+        . 'JOIN engagements e ON e.id = te.engagement_id '
+        . 'JOIN companies c ON c.id = e.company_id '
+        . 'WHERE e.status = \'active\' '
+        . 'AND (te.invoiced_square_invoice_id IS NULL OR TRIM(te.invoiced_square_invoice_id) = \'\')';
+    $r = $db->query($sql);
+    while ($te = $r->fetchArray(SQLITE3_ASSOC)) {
+        $period = trim((string) ($te['billing_period_month'] ?? ''));
+        $anchor = dsc_billing_next_month($period);
+        if ($anchor === null) {
+            continue;
+        }
+        $eid = (int) ($te['engagement_id'] ?? 0);
+        // Skip if a published outbound already exists for this engagement + anchor month.
+        $chk = $db->prepare(
+            'SELECT id FROM outbound_invoices WHERE engagement_id = :e AND '
+            . '(anchor_month = :a OR anchor_month LIKE :apref) LIMIT 1'
+        );
+        $chk->bindValue(':e', $eid, SQLITE3_INTEGER);
+        $chk->bindValue(':a', $anchor, SQLITE3_TEXT);
+        $chk->bindValue(':apref', $anchor . '-%', SQLITE3_TEXT);
+        if ($chk->execute()->fetchArray(SQLITE3_ASSOC)) {
+            continue;
+        }
+        $docId = null;
+        $memo = (string) ($te['memo'] ?? '');
+        if (preg_match('/Doc\s*#(\d+)/i', $memo, $m) || preg_match('/#(\d{2,})/', $memo, $m)) {
+            $docId = (int) $m[1];
+        }
+        $label = dsc_billing_format_month_human($period) . ' hours + '
+            . dsc_billing_format_month_human($anchor) . ' retainer (draft)';
+        dsc_billing_upsert_invoice_draft(
+            $db,
+            $eid,
+            $anchor,
+            $docId,
+            'tier1',
+            $label,
+            'From uninvoiced time entry #' . (int) ($te['id'] ?? 0)
+        );
+    }
 }
 
 /**
@@ -831,6 +1049,13 @@ function dsc_billing_publish_combined_invoice(
     }
 
     dsc_billing_sync_engagement_stoppage($db, $engagementId, $aggregate['payment_status']);
+
+    // Drop matching local drafts — they are no longer unpublished.
+    dsc_invoicing_ensure_invoice_drafts_table($db);
+    $drop = $db->prepare('DELETE FROM invoice_drafts WHERE engagement_id = :e AND anchor_month = :a');
+    $drop->bindValue(':e', $engagementId, SQLITE3_INTEGER);
+    $drop->bindValue(':a', $anchorMonth, SQLITE3_TEXT);
+    $drop->execute();
 
     return [
         'ok' => true,
