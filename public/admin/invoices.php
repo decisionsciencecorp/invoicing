@@ -314,12 +314,31 @@ inv_render_page_header([
                         <tr><td style="padding:.25rem 0;">Due</td><td style="text-align:right;">Net 30 (<?= htmlspecialchars((string) ($preview['fee_due_date'] ?? ''), ENT_QUOTES, 'UTF-8') ?>)</td></tr>
                     <?php else: ?>
                         <tr><td style="padding:.25rem 0;">Prior month (overage basis)</td><td style="text-align:right;"><code><?= htmlspecialchars((string) ($preview['overage_month'] ?? ''), ENT_QUOTES, 'UTF-8') ?></code></td></tr>
-                        <tr><td style="padding:.25rem 0;">Retainer</td><td style="text-align:right;">$<?= number_format($preview['retainer_amount_cents'] / 100, 2) ?></td></tr>
+                        <?php if (isset($preview['prior_month_hours'])): ?>
+                            <tr><td style="padding:.25rem 0;">Prior month logged</td><td style="text-align:right;"><?= htmlspecialchars(number_format((float) $preview['prior_month_hours'], 2), ENT_QUOTES, 'UTF-8') ?> h</td></tr>
+                            <tr><td style="padding:.25rem 0;">Included / overage hours</td><td style="text-align:right;"><?= (int) ($preview['included_hours_per_month'] ?? 0) ?> h / <?= htmlspecialchars(number_format((float) ($preview['overage_hours'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?> h</td></tr>
+                        <?php endif; ?>
+                        <tr><td style="padding:.25rem 0;">Retainer (anchor month)</td><td style="text-align:right;">$<?= number_format($preview['retainer_amount_cents'] / 100, 2) ?></td></tr>
                         <tr><td style="padding:.25rem 0;">Overage</td><td style="text-align:right;">$<?= number_format($preview['overage_amount_cents'] / 100, 2) ?></td></tr>
                     <?php endif; ?>
                     <tr style="font-weight:600;"><td style="padding:.25rem 0;">Total</td><td style="text-align:right;">$<?= number_format($preview['total_cents'] / 100, 2) ?></td></tr>
                 </tbody>
             </table>
+            <?php
+            $draftQs = http_build_query(array_filter([
+                'engagement_id' => $selE > 0 ? $selE : null,
+                'anchor_month' => $selM !== '' ? $selM : null,
+                'tasks_document_id' => $selDoc > 0 ? $selDoc : null,
+                'tier_key' => $previewFlat ? $selTier : null,
+            ], static fn ($v) => $v !== null && $v !== ''));
+            $draftHref = 'invoice-draft.php?' . $draftQs;
+            ?>
+            <p style="margin:1rem 0 0;">
+                <a class="btn btn-outline" href="<?= htmlspecialchars($draftHref, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">
+                    View draft details
+                </a>
+                <span style="color:#8b949e;font-size:.875rem;margin-left:.5rem;">Same layout as the client page — no Square links, nothing published.</span>
+            </p>
             <?php if ($selE > 0 && $preview['total_cents'] > 0): ?>
                 <?php $canPublish = $previewFlat || $selDoc > 0; ?>
                 <form method="POST" style="margin-top:1rem;">
