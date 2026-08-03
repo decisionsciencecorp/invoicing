@@ -376,7 +376,7 @@ inv_render_page_header([
                     <tr style="text-align:left;border-bottom:1px solid #30363d;">
                         <th style="padding:0.4rem;">Aging</th>
                         <th style="padding:0.4rem;">Due</th>
-                        <th style="padding:0.4rem;">Month</th>
+                        <th style="padding:0.4rem;">Covers</th>
                         <th style="padding:0.4rem;">Company / engagement</th>
                         <th style="padding:0.4rem;text-align:right;">Total</th>
                         <th style="padding:0.4rem;">Status</th>
@@ -392,7 +392,7 @@ inv_render_page_header([
                                 <?php endif; ?>
                             </td>
                             <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($x['due_date'] !== '' ? $x['due_date'] : '—'), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['anchor_month'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;"><?php inv_render_outbound_period_cell($x); ?></td>
                             <td style="padding:0.35rem 0;">
                                 <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
                                 <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>
@@ -444,11 +444,16 @@ inv_render_page_header([
             of <?= (int) $listTotal ?>
             · page <?= (int) $listPage ?> of <?= (int) $listPages ?>
         </p>
+        <p style="color:#8b949e;font-size:.8125rem;margin:0 0 .75rem;">
+            <strong>Covers</strong> is what the invoice is for (e.g. “June 2026 overage”).
+            Codes like <code>2026-07-O</code> are internal: <code>-R</code> = retainer for that month,
+            <code>-O</code> = overage for the <em>prior</em> month (not “July overage”).
+        </p>
         <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
                 <thead>
                     <tr style="text-align:left;border-bottom:1px solid #30363d;">
-                        <th style="padding:0.4rem;">Month</th>
+                        <th style="padding:0.4rem;">Covers</th>
                         <th style="padding:0.4rem;">Company / engagement</th>
                         <th style="padding:0.4rem;">Mode</th>
                         <th style="padding:0.4rem;text-align:right;">Total</th>
@@ -468,7 +473,7 @@ inv_render_page_header([
                         $hasMd = trim((string) ($x['accounting_markdown'] ?? '')) !== '';
                         ?>
                         <tr style="border-bottom:1px solid #21262d;">
-                            <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['anchor_month'], ENT_QUOTES, 'UTF-8') ?></code></td>
+                            <td style="padding:0.35rem 0;"><?php inv_render_outbound_period_cell($x); ?></td>
                             <td style="padding:0.35rem 0;">
                                 <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
                                 <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>

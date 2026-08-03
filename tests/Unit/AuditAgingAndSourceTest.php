@@ -88,6 +88,37 @@ final class AuditAgingAndSourceTest extends TestCase
         $this->assertStringContainsString('published', inv_status_pill_class('published'));
     }
 
+    public function testOutboundPeriodLabel(): void
+    {
+        $this->assertSame(
+            'July 2026 retainer',
+            dsc_billing_outbound_period_label([
+                'anchor_month' => '2026-07-R',
+                'overage_month' => '2026-06',
+                'retainer_amount_cents' => 50000,
+                'overage_amount_cents' => 0,
+            ])
+        );
+        $this->assertSame(
+            'June 2026 overage',
+            dsc_billing_outbound_period_label([
+                'anchor_month' => '2026-07-O',
+                'overage_month' => '2026-06',
+                'retainer_amount_cents' => 0,
+                'overage_amount_cents' => 100000,
+            ])
+        );
+        $this->assertSame(
+            'August 2026 retainer + July 2026 overage',
+            dsc_billing_outbound_period_label([
+                'anchor_month' => '2026-08',
+                'overage_month' => '2026-07',
+                'retainer_amount_cents' => 50000,
+                'overage_amount_cents' => 242500,
+            ])
+        );
+    }
+
     public function testCancelOutboundInvoice(): void
     {
         invoicing_test_install_mocks();

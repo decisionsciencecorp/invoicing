@@ -55,3 +55,19 @@ function inv_status_pill_class(string $status): string {
     }
     return 'status-pill status-pill--published';
 }
+
+/**
+ * Admin table cell for outbound billing period (human label + muted raw code).
+ *
+ * @param array<string,mixed> $row
+ */
+function inv_render_outbound_period_cell(array $row): void {
+    $label = dsc_billing_outbound_period_label($row);
+    $raw = trim((string) ($row['anchor_month'] ?? ''));
+    ?>
+    <div><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php if ($raw !== '' && $raw !== $label): ?>
+        <div style="color:#8b949e;font-size:.75rem;margin-top:.15rem;"><code><?= htmlspecialchars($raw, ENT_QUOTES, 'UTF-8') ?></code></div>
+    <?php endif; ?>
+    <?php
+}
