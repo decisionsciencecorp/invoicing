@@ -366,6 +366,7 @@ inv_render_page_header([
     <h2 style="margin-top:0;">Unpaid / accounts receivable</h2>
     <p style="color:#8b949e;font-size:.875rem;margin:0 0 1rem;">
         Open invoices that are not paid or canceled, with aging buckets from due date (UTC).
+        Click the period name (or <strong>View</strong>) to open the client invoice page.
     </p>
     <?php if ($unpaidRows === []): ?>
         <p style="margin:0;color:#8b949e;">Nothing unpaid.</p>
@@ -385,6 +386,7 @@ inv_render_page_header([
                 </thead>
                 <tbody>
                     <?php foreach ($unpaidRows as $x): ?>
+                        <?php $unpaidClientUrl = dsc_billing_client_page_url($x); ?>
                         <tr style="border-bottom:1px solid #21262d;">
                             <td style="padding:0.35rem 0;"><code><?= htmlspecialchars((string) $x['aging_bucket'], ENT_QUOTES, 'UTF-8') ?></code>
                                 <?php if ($x['days_past_due'] !== null): ?>
@@ -392,7 +394,7 @@ inv_render_page_header([
                                 <?php endif; ?>
                             </td>
                             <td style="padding:0.35rem 0;"><?= htmlspecialchars((string) ($x['due_date'] !== '' ? $x['due_date'] : '—'), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td style="padding:0.35rem 0;"><?php inv_render_outbound_period_cell($x); ?></td>
+                            <td style="padding:0.35rem 0;"><?php inv_render_outbound_period_cell($x, $unpaidClientUrl !== '' ? $unpaidClientUrl : null); ?></td>
                             <td style="padding:0.35rem 0;">
                                 <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
                                 <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>
@@ -400,7 +402,12 @@ inv_render_page_header([
                             <td style="padding:0.35rem 0;text-align:right;">$<?= number_format(((int) $x['total_amount_cents']) / 100, 2) ?></td>
                             <td style="padding:0.35rem 0;"><span class="<?= htmlspecialchars(inv_status_pill_class((string) $x['payment_status']), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $x['payment_status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                             <td style="padding:0.35rem 0;">
-                                <form method="POST" style="display:inline;">
+                                <?php if ($unpaidClientUrl !== ''): ?>
+                                    <a class="btn btn-outline" style="padding:0.25rem 0.5rem;display:inline-block;text-decoration:none;"
+                                       href="<?= htmlspecialchars($unpaidClientUrl, ENT_QUOTES, 'UTF-8') ?>"
+                                       target="_blank" rel="noopener">View</a>
+                                <?php endif; ?>
+                                <form method="POST" style="display:inline;<?= $unpaidClientUrl !== '' ? 'margin-left:.25rem;' : '' ?>">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="form" value="refresh_invoice_status">
                                     <input type="hidden" name="return_tab" value="unpaid">
@@ -473,7 +480,7 @@ inv_render_page_header([
                         $hasMd = trim((string) ($x['accounting_markdown'] ?? '')) !== '';
                         ?>
                         <tr style="border-bottom:1px solid #21262d;">
-                            <td style="padding:0.35rem 0;"><?php inv_render_outbound_period_cell($x); ?></td>
+                            <td style="padding:0.35rem 0;"><?php inv_render_outbound_period_cell($x, $clientUrl !== '' ? $clientUrl : null); ?></td>
                             <td style="padding:0.35rem 0;">
                                 <?= htmlspecialchars((string) $x['company_name'], ENT_QUOTES, 'UTF-8') ?>
                                 <span style="color:#8b949e;"> · <?= htmlspecialchars((string) $x['engagement_name'], ENT_QUOTES, 'UTF-8') ?></span>

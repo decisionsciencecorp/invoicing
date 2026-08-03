@@ -60,12 +60,20 @@ function inv_status_pill_class(string $status): string {
  * Admin table cell for outbound billing period (human label + muted raw code).
  *
  * @param array<string,mixed> $row
+ * @param string|null $href optional link (e.g. client invoice page)
  */
-function inv_render_outbound_period_cell(array $row): void {
+function inv_render_outbound_period_cell(array $row, ?string $href = null): void {
     $label = dsc_billing_outbound_period_label($row);
     $raw = trim((string) ($row['anchor_month'] ?? ''));
+    $href = $href !== null ? trim($href) : '';
     ?>
-    <div><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></div>
+    <div>
+        <?php if ($href !== ''): ?>
+            <a href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></a>
+        <?php else: ?>
+            <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
+        <?php endif; ?>
+    </div>
     <?php if ($raw !== '' && $raw !== $label): ?>
         <div style="color:#8b949e;font-size:.75rem;margin-top:.15rem;"><code><?= htmlspecialchars($raw, ENT_QUOTES, 'UTF-8') ?></code></div>
     <?php endif; ?>
