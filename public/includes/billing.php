@@ -55,6 +55,68 @@ function dsc_billing_tier_label(string $tierKey): string {
     return dsc_billing_normalize_tier_key($tierKey) === 'tier2' ? 'Tier 2' : 'Tier 1';
 }
 
+/**
+ * Format YYYY-MM as "July 2026". Returns the raw string if unparseable.
+ */
+function dsc_billing_format_month_human(string $yyyyMm): string {
+    $s = trim($yyyyMm);
+    if (!preg_match('/^(\d{4})-(\d{2})$/', $s, $m)) {
+        return $s;
+    }
+    $dt = DateTimeImmutable::createFromFormat('!Y-m', $s);
+    if (!$dt) {
+        return $s;
+    }
+    return $dt->format('F Y');
+}
+
+/**
+ * Human label for an outbound invoice row's billing period.
+ * Legacy split rows use anchor_month like 2026-07-R / 2026-07-O (R = retainer month,
+ * O = overage for the prior month stored in overage_month — not "July overage").
+ *
+ * @param array<string,mixed> $row
+ */
+function dsc_billing_outbound_period_label(array $row): string {
+    $anchorRaw = trim((string) ($row['anchor_month'] ?? ''));
+    $suffix = '';
+    $ym = $anchorRaw;
+    if (preg_match('/^(\d{4}-\d{2})-([RO])$/i', $anchorRaw, $m)) {
+        $ym = $m[1];
+        $suffix = strtoupper($m[2]);
+    }
+
+    $overageYm = trim((string) ($row['overage_month'] ?? ''));
+    $ret = (int) ($row['retainer_amount_cents'] ?? 0);
+    $ov = (int) ($row['overage_amount_cents'] ?? 0);
+    $isFlat = (($row['billing_mode'] ?? '') === 'flat_tier');
+
+    if ($suffix === 'O' || ($ov > 0 && $ret === 0 && $suffix !== 'R')) {
+        $period = $overageYm !== '' ? $overageYm : (dsc_billing_prev_month($ym) ?? $ym);
+        return dsc_billing_format_month_human($period) . ' overage';
+    }
+
+    if ($suffix === 'R' || ($ret > 0 && $ov === 0)) {
+        if ($isFlat) {
+            $tier = dsc_billing_tier_label((string) ($row['tier_key'] ?? 'tier1'));
+            return dsc_billing_format_month_human($ym) . ' ' . $tier . ' fee';
+        }
+        return dsc_billing_format_month_human($ym) . ' retainer';
+    }
+
+    if ($ret > 0 && $ov > 0) {
+        $ovLabel = $overageYm !== '' ? dsc_billing_format_month_human($overageYm) : 'prior-month';
+        return dsc_billing_format_month_human($ym) . ' retainer + ' . $ovLabel . ' overage';
+    }
+
+    if ($isFlat && $ym !== '') {
+        $tier = dsc_billing_tier_label((string) ($row['tier_key'] ?? 'tier1'));
+        return dsc_billing_format_month_human($ym) . ' ' . $tier . ' fee';
+    }
+
+    return $ym !== '' ? dsc_billing_format_month_human($ym) : $anchorRaw;
+}
+
 function dsc_billing_generate_public_token(): string {
     return bin2hex(random_bytes(16));
 }
