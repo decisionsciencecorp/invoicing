@@ -326,3 +326,19 @@ body.inv-invoice {
 .invoice-footer a {
   color: var(--inv-accent);
 }
+
+.invoice-draft-banner {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--inv-border-subtle);
+  background: var(--inv-bg-soft);
+  color: var(--inv-text-primary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.status-pill.draft {
+  background: transparent;
+  border: 1px dashed var(--inv-border-subtle);
+  color: var(--inv-text-muted);
+}

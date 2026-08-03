@@ -57,7 +57,7 @@ inv_render_page_header([
                 <li>Pick an active engagement and billing month.</li>
                 <li><strong>Hourly:</strong> select a Tasks time-log / accounting document (required). The markdown becomes the client page body.</li>
                 <li><strong>Flat/tier:</strong> pick Tier 1 or Tier 2; accounting doc is optional.</li>
-                <li>Confirm the preview totals, then publish. Square gets the payment invoice(s); the client gets a tokenized page.</li>
+                <li>Confirm the preview totals, then <strong>View draft details</strong> (full client-page layout, no Square). Publish only when you are ready.</li>
             </ol>
             <p>Do not re-publish a month that already has a paid Square invoice for that engagement.</p>
         <?php elseif ($section === 'flat-tier'): ?>
@@ -65,7 +65,7 @@ inv_render_page_header([
             <p>On the engagement, set billing mode to <strong>Flat / tier monthly fee</strong> and enter Tier 1 / Tier 2 amounts. At publish you choose which tier to bill. Due date is Net 30 from publish.</p>
         <?php elseif ($section === 'client-page'): ?>
             <h2 style="margin-top:0;">Client invoice page</h2>
-            <p>Share link shape: <code>/invoice.php?t=&lt;token&gt;</code>. When the invoice is unpaid, the page refreshes status from Square on load so clients see paid after they pay. Public access is rate-limited liberally per IP/token.</p>
+            <p>Share link shape: <code>/invoice.php?t=&lt;token&gt;</code> (after publish). Before publish, use <strong>Invoices → Publish → View draft details</strong> for the same layout with draft status and no pay links. When the invoice is unpaid, the live page refreshes status from Square on load so clients see paid after they pay. Public access is rate-limited liberally per IP/token.</p>
         <?php elseif ($section === 'webhooks'): ?>
             <h2 style="margin-top:0;">Square webhooks</h2>
             <p>Configure the notification URL and signature key under Settings → Square. Subscribe to invoice payment/update/cancel events. Deliveries refresh local status and appear in the audit log. See Settings → Webhooks for the live endpoint checklist.</p>

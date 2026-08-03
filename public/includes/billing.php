@@ -313,6 +313,8 @@ function dsc_billing_combined_totals(
     $retainerCents = max(0, (int) round($included * $rate));
 
     $overageCents = 0;
+    $prevLogged = 0.0;
+    $overageHours = 0.0;
     if ($overageMonth !== null) {
         $prevLogged = dsc_billing_sum_hours_engagement($db, $engagementId, $overageMonth);
         $overageHours = max(0.0, $prevLogged - (float) $included);
@@ -329,7 +331,91 @@ function dsc_billing_combined_totals(
         'total_cents' => $total,
         'hourly_rate_cents' => $rate,
         'included_hours_per_month' => $included,
+        'prior_month_hours' => $prevLogged,
+        'overage_hours' => $overageHours,
+        'engagement_name' => (string) ($e['engagement_name'] ?? ''),
     ];
+}
+
+/**
+ * Build a client-page-shaped view for a not-yet-published invoice.
+ * Does not create Square invoices, tokens, or outbound rows.
+ *
+ * @return array{ok:true, view:array<string,mixed>}|array{ok:false, error:string}
+ */
+function dsc_billing_build_draft_invoice_view(
+    SQLite3 $db,
+    int $engagementId,
+    string $anchorMonth,
+    ?int $tasksDocumentId = null,
+    ?string $tierKey = null,
+): array {
+    $totals = dsc_billing_combined_totals($db, $engagementId, $anchorMonth, $tierKey);
+    if (isset($totals['error'])) {
+        return ['ok' => false, 'error' => (string) $totals['error']];
+    }
+
+    $st = $db->prepare(
+        'SELECT e.id, e.name AS engagement_name, c.name AS company_name '
+        . 'FROM engagements e JOIN companies c ON c.id = e.company_id WHERE e.id = :id LIMIT 1'
+    );
+    $st->bindValue(':id', $engagementId, SQLITE3_INTEGER);
+    $exe = $st->execute();
+    $row = $exe ? $exe->fetchArray(SQLITE3_ASSOC) : false;
+    if (!$row) {
+        return ['ok' => false, 'error' => 'Engagement not found.'];
+    }
+
+    $isFlat = (($totals['billing_mode'] ?? '') === 'flat_tier');
+    $dueDates = dsc_billing_due_dates_for_publish();
+    $feeDue = $isFlat
+        ? (string) ($totals['fee_due_date'] ?? dsc_billing_flat_fee_due_date())
+        : '';
+
+    $docTitle = '';
+    $markdown = '';
+    if ($tasksDocumentId !== null && $tasksDocumentId > 0) {
+        require_once __DIR__ . '/tasks-dsc.php';
+        $docFetch = dsc_tasks_fetch_document($tasksDocumentId);
+        if (!$docFetch['ok']) {
+            return ['ok' => false, 'error' => (string) ($docFetch['error'] ?? 'Could not load Tasks document.')];
+        }
+        $doc = $docFetch['document'] ?? null;
+        if (!is_array($doc)) {
+            return ['ok' => false, 'error' => 'Tasks document payload missing.'];
+        }
+        $docTitle = (string) ($doc['title'] ?? '');
+        $markdown = (string) ($doc['body'] ?? '');
+    }
+
+    $view = [
+        'is_draft' => true,
+        'company_name' => (string) ($row['company_name'] ?? ''),
+        'engagement_name' => (string) ($row['engagement_name'] ?? ''),
+        'anchor_month' => (string) ($totals['retainer_month'] ?? $anchorMonth),
+        'overage_month' => (string) ($totals['overage_month'] ?? ''),
+        'retainer_amount_cents' => (int) ($totals['retainer_amount_cents'] ?? 0),
+        'overage_amount_cents' => (int) ($totals['overage_amount_cents'] ?? 0),
+        'total_amount_cents' => (int) ($totals['total_cents'] ?? 0),
+        'retainer_due_date' => $isFlat ? $feeDue : (string) $dueDates['retainer_due_date'],
+        'overage_due_date' => $isFlat ? '' : (string) $dueDates['overage_due_date'],
+        'fee_due_date' => $feeDue,
+        'retainer_public_url' => '',
+        'overage_public_url' => '',
+        'retainer_payment_status' => 'draft',
+        'overage_payment_status' => 'draft',
+        'tasks_document_id' => $tasksDocumentId !== null && $tasksDocumentId > 0 ? $tasksDocumentId : null,
+        'tasks_document_title' => $docTitle,
+        'accounting_markdown' => $markdown,
+        'billing_mode' => (string) ($totals['billing_mode'] ?? 'hourly'),
+        'tier_key' => (string) ($totals['tier_key'] ?? 'tier1'),
+        'hourly_rate_cents' => (int) ($totals['hourly_rate_cents'] ?? 0),
+        'included_hours_per_month' => (int) ($totals['included_hours_per_month'] ?? 0),
+        'prior_month_hours' => (float) ($totals['prior_month_hours'] ?? 0),
+        'overage_hours' => (float) ($totals['overage_hours'] ?? 0),
+    ];
+
+    return ['ok' => true, 'view' => $view];
 }
 
 /**
