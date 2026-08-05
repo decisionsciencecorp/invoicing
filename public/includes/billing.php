@@ -411,6 +411,37 @@ function dsc_billing_combined_totals(
 }
 
 /**
+ * Drop local drafts once a published outbound exists for the same engagement + month.
+ * Publish already deletes, but reopen-preview / older bugs can leave orphans.
+ */
+function dsc_billing_prune_published_drafts(SQLite3 $db): int {
+    dsc_invoicing_ensure_invoice_drafts_table($db);
+    $sql = 'DELETE FROM invoice_drafts WHERE id IN (
+        SELECT d.id FROM invoice_drafts d
+        INNER JOIN outbound_invoices o
+          ON o.engagement_id = d.engagement_id
+         AND (o.anchor_month = d.anchor_month OR o.anchor_month LIKE d.anchor_month || \'-%\')
+    )';
+    $db->exec($sql);
+    return $db->changes();
+}
+
+function dsc_billing_outbound_exists_for_anchor(SQLite3 $db, int $engagementId, string $anchorMonth): bool {
+    if ($engagementId <= 0 || !dsc_billing_valid_month($anchorMonth)) {
+        return false;
+    }
+    $chk = $db->prepare(
+        'SELECT id FROM outbound_invoices WHERE engagement_id = :e AND '
+        . '(anchor_month = :a OR anchor_month LIKE :apref) LIMIT 1'
+    );
+    $chk->bindValue(':e', $engagementId, SQLITE3_INTEGER);
+    $chk->bindValue(':a', $anchorMonth, SQLITE3_TEXT);
+    $chk->bindValue(':apref', $anchorMonth . '-%', SQLITE3_TEXT);
+    $row = $chk->execute()->fetchArray(SQLITE3_ASSOC);
+    return (bool) $row;
+}
+
+/**
  * Upsert a local invoice draft (no Square). Returns draft id.
  *
  * @return array{ok:true, draft_id:int}|array{ok:false, error:string}
@@ -427,6 +458,9 @@ function dsc_billing_upsert_invoice_draft(
     dsc_invoicing_ensure_invoice_drafts_table($db);
     if ($engagementId <= 0 || !dsc_billing_valid_month($anchorMonth)) {
         return ['ok' => false, 'error' => 'Engagement and billing month (YYYY-MM) required.'];
+    }
+    if (dsc_billing_outbound_exists_for_anchor($db, $engagementId, $anchorMonth)) {
+        return ['ok' => false, 'error' => 'Already published for this engagement and billing month — not a draft.'];
     }
     $tier = dsc_billing_normalize_tier_key($tierKey);
     $docId = ($tasksDocumentId !== null && $tasksDocumentId > 0) ? $tasksDocumentId : null;
@@ -510,6 +544,7 @@ function dsc_billing_upsert_invoice_draft(
  */
 function dsc_billing_list_invoice_drafts(SQLite3 $db): array {
     dsc_invoicing_ensure_invoice_drafts_table($db);
+    dsc_billing_prune_published_drafts($db);
     dsc_billing_sync_drafts_from_uninvoiced_time($db);
     $sql = 'SELECT d.*, e.name AS engagement_name, c.name AS company_name, '
         . 'COALESCE(e.billing_mode, \'hourly\') AS billing_mode '
@@ -572,6 +607,7 @@ function dsc_billing_delete_invoice_draft(SQLite3 $db, int $draftId): array {
  */
 function dsc_billing_sync_drafts_from_uninvoiced_time(SQLite3 $db): void {
     dsc_invoicing_ensure_invoice_drafts_table($db);
+    dsc_billing_prune_published_drafts($db);
     $sql = 'SELECT te.id, te.engagement_id, te.billing_period_month, te.hours, te.memo, '
         . 'e.name AS engagement_name, c.name AS company_name '
         . 'FROM time_entries te '
@@ -588,14 +624,7 @@ function dsc_billing_sync_drafts_from_uninvoiced_time(SQLite3 $db): void {
         }
         $eid = (int) ($te['engagement_id'] ?? 0);
         // Skip if a published outbound already exists for this engagement + anchor month.
-        $chk = $db->prepare(
-            'SELECT id FROM outbound_invoices WHERE engagement_id = :e AND '
-            . '(anchor_month = :a OR anchor_month LIKE :apref) LIMIT 1'
-        );
-        $chk->bindValue(':e', $eid, SQLITE3_INTEGER);
-        $chk->bindValue(':a', $anchor, SQLITE3_TEXT);
-        $chk->bindValue(':apref', $anchor . '-%', SQLITE3_TEXT);
-        if ($chk->execute()->fetchArray(SQLITE3_ASSOC)) {
+        if (dsc_billing_outbound_exists_for_anchor($db, $eid, $anchor)) {
             continue;
         }
         $docId = null;
