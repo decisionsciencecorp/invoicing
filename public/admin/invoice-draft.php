@@ -13,6 +13,7 @@ require_once __DIR__ . '/../includes/invoice-page-view.php';
 requireAuth();
 
 $db = getDbConnection();
+dsc_billing_prune_published_drafts($db);
 
 $engagementId = (int) ($_GET['engagement_id'] ?? 0);
 $anchorMonth = trim((string) ($_GET['anchor_month'] ?? ''));
@@ -21,6 +22,25 @@ $tierKey = trim((string) ($_GET['tier_key'] ?? 'tier1'));
 
 if ($engagementId <= 0 || !dsc_billing_valid_month($anchorMonth)) {
     header('Location: ' . dsc_invoicing_href('admin/invoices.php?tab=drafts'));
+    exit;
+}
+
+// Already published → send to the live client page / list, don't recreate a draft.
+if (dsc_billing_outbound_exists_for_anchor($db, $engagementId, $anchorMonth)) {
+    $st = $db->prepare(
+        'SELECT public_token, public_url FROM outbound_invoices WHERE engagement_id = :e '
+        . 'AND (anchor_month = :a OR anchor_month LIKE :apref) ORDER BY id DESC LIMIT 1'
+    );
+    $st->bindValue(':e', $engagementId, SQLITE3_INTEGER);
+    $st->bindValue(':a', $anchorMonth, SQLITE3_TEXT);
+    $st->bindValue(':apref', $anchorMonth . '-%', SQLITE3_TEXT);
+    $pub = $st->execute()->fetchArray(SQLITE3_ASSOC) ?: null;
+    $clientUrl = $pub ? dsc_billing_client_page_url($pub) : '';
+    if ($clientUrl !== '') {
+        header('Location: ' . $clientUrl);
+        exit;
+    }
+    header('Location: ' . dsc_invoicing_href('admin/invoices.php?tab=list'));
     exit;
 }
 
@@ -57,7 +77,6 @@ $publishQs = http_build_query(array_filter([
 ], static fn ($v) => $v !== null && $v !== ''));
 $publishHref = dsc_invoicing_href('admin/invoices.php?' . $publishQs);
 
-// Inject admin chrome bar into the draft banner area via view flag.
 $view = $built['view'];
 $view['is_draft'] = true;
 $view['draft_admin_bar'] = [
