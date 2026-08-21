@@ -1,11 +1,26 @@
 # DSC Invoicing
 
-**Overlay lane** for [Sanctum Invoicing](https://github.com/sanctumos/sanctum-invoicing). Product features invent upstream; this repo keeps DSC brand, Square lanes, Tasks/PSF wiring, and Ada multihost sync (`docs/DEPLOY-LANES.md`, `docs/OVERLAY-INVENTORY.md`). Promote with `tools/promote_from_sanctum.sh`.
+> ## STANDING ORDER — read this first
+>
+> **Sanctum builds Invoicing. This repo is a thin DSC overlay + Ada sync lane — not a second product.**
+>
+> | Lane | Repo | Role |
+> |------|------|------|
+> | **Product** | [`sanctumos/sanctum-invoicing`](https://github.com/sanctumos/sanctum-invoicing) | Feature brain (schema, billing, UI, API, skins) |
+> | **Overlay** | `decisionsciencecorp/invoicing` (**this repo**) | DSC brand, Square lanes, Tasks/PSF wiring, deploy docs, org-only tools |
+>
+> 1. Invent product features **upstream** on Sanctum.  
+> 2. Promote into this overlay: `tools/promote_from_sanctum.sh` then `tools/check_overlay.sh`.  
+> 3. Ada syncs **this** repo (`dev` → DEV host, `main` → prod). **Never** flip multihost `REPO` to Sanctum.  
+> 4. Schema upgrades stay **idempotent** so promote cannot corrupt prod SQLite.
+>
+> Full inventory: [`docs/OVERLAY-INVENTORY.md`](docs/OVERLAY-INVENTORY.md) · Program PRD: [`docs/PRD-SANCTUM-INVOICING-HOME.md`](docs/PRD-SANCTUM-INVOICING-HOME.md) · Tasks Doc **#1158** / standing Doc **#1159**.
 
 PHP + SQLite app for **consulting retainers + overage invoicing** via **Square**. Follows [Kitchen POS](https://github.com/decisionsciencecorp/kitchen-pos)-style layout: `public/` docroot, session admin, curl-based Square client.
 
-- **PRD:** [`docs/PRD-invoicing-v0.1.md`](docs/PRD-invoicing-v0.1.md) (v0.2 content)
-- **Tasks (Sanctum):** project **Invoicing** on `tasks.decisionsciencecorp.com` — todos must be assigned to that project (no orphans).
+- **Billing rules PRD:** [`docs/PRD-invoicing-v0.1.md`](docs/PRD-invoicing-v0.1.md) (v0.2 content)
+- **Deploy lanes:** [`docs/DEPLOY-LANES.md`](docs/DEPLOY-LANES.md) — DEV `dev.invoicing…` / PROD `invoicing…`
+- **Tasks board:** project **Invoicing** (`project_id` **2**) — list **Sanctum Invoicing home** (#438)
 
 ## Requirements
 
