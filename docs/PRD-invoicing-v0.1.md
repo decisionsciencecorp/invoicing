@@ -1,3 +1,5 @@
+**Product home:** Sanctum Invoicing (`sanctumos/sanctum-invoicing`) — see `docs/PRD-SANCTUM-INVOICING-HOME.md` / Tasks Doc #1158. This file remains the billing-rules PRD for the DSC overlay deploy.
+
 # Invoicing product — PRD v0.2
 
 **Product:** Internal / client-facing invoicing for **professional services** (not retail inventory).  

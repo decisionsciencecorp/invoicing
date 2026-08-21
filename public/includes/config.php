@@ -19,6 +19,46 @@ define('ADMIN_SESSION_LIFETIME_SECONDS', 4 * 3600);
 define('PASSWORD_COST', 12);
 define('SITE_NAME', 'DSC Invoicing');
 
+/**
+ * Display name for admin chrome / login. Config key site_name overrides SITE_NAME.
+ */
+function dsc_invoicing_app_name(): string {
+    if (function_exists('get_config')) {
+        try {
+            $from = get_config('site_name');
+            if (is_string($from) && trim($from) !== '') {
+                return trim($from);
+            }
+        } catch (Throwable $e) {
+        }
+    }
+    return defined('SITE_NAME') ? (string) SITE_NAME : 'DSC Invoicing';
+}
+
+/**
+ * Public invoice footer brand.
+ * @return array{name:string,url:string}
+ */
+function dsc_invoicing_invoice_brand(): array {
+    $name = 'Decision Science Corp';
+    $url = 'https://decisionsciencecorp.com/';
+    if (function_exists('get_config')) {
+        try {
+            $n = get_config('invoice_brand_name');
+            if (is_string($n) && trim($n) !== '') {
+                $name = trim($n);
+            }
+            $u = get_config('invoice_brand_url');
+            if (is_string($u) && trim($u) !== '') {
+                $url = trim($u);
+            }
+        } catch (Throwable $e) {
+        }
+    }
+    return ['name' => $name, 'url' => $url];
+}
+
+
 if (!defined('LOG_PATH')) {
     define('LOG_PATH', __DIR__ . '/../../logs/app.log');
 }

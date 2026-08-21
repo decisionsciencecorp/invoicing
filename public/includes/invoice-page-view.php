@@ -171,9 +171,18 @@ function dsc_invoice_render_page(array $view): void {
         </section>
     <?php endif; ?>
 
+    <?php
+    $brand = function_exists('dsc_invoicing_invoice_brand')
+        ? dsc_invoicing_invoice_brand()
+        : ['name' => 'Decision Science Corp', 'url' => 'https://decisionsciencecorp.com/'];
+    $brandName = (string) ($brand['name'] ?? 'Decision Science Corp');
+    $brandUrl = trim((string) ($brand['url'] ?? ''));
+    ?>
     <footer class="invoice-footer">
-        Questions? Contact Decision Science Corp ·
-        <a href="https://decisionsciencecorp.com/" rel="noopener">decisionsciencecorp.com</a>
+        Questions? Contact <?= htmlspecialchars($brandName, ENT_QUOTES, 'UTF-8') ?>
+        <?php if ($brandUrl !== ''): ?>
+            · <a href="<?= htmlspecialchars($brandUrl, ENT_QUOTES, 'UTF-8') ?>" rel="noopener"><?= htmlspecialchars(preg_replace('#^https?://#', '', $brandUrl) ?: $brandUrl, ENT_QUOTES, 'UTF-8') ?></a>
+        <?php endif; ?>
     </footer>
 </main>
 </body>
