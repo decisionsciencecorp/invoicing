@@ -1,3 +1,5 @@
+> **STANDING:** This is the DSC overlay deploy map. Product home is Sanctum Invoicing — see README + `OVERLAY-INVENTORY.md`.
+
 # Invoicing deploy lanes
 
 | Lane | Host | Git branch | Square |

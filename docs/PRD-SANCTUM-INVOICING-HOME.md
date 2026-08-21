@@ -1,11 +1,17 @@
+> ## STANDING ORDER (shipped 2026-08-21)
+>
+> **Sanctum builds Invoicing. DSC is the overlay.** Invent features on `sanctumos/sanctum-invoicing`. Promote into this repo. Ada syncs DSC only. Never flip prod `REPO` to Sanctum. Schema upgrades stay idempotent.
+>
+> See also: [OVERLAY-INVENTORY.md](./OVERLAY-INVENTORY.md) · README standing banner · Tasks standing Doc **#1159**.
+
 # PRD — Sanctum Invoicing home (DSC overlay)
 
 **Owner:** Otto Vernal (with Mark)  
-**Status:** Phase 0 → ready to execute  
+**Status:** Shipped — standing overlay rule in force  
 **Date:** 2026-08-21  
 **Tasks board:** Invoicing · `project_id` **2** · list **Sanctum Invoicing home** (#438) · Tasks Doc **#1158**  
 **Repos:**
-- Product (upstream): `sanctumos/sanctum-invoicing` (to be created)
+- Product (upstream): `sanctumos/sanctum-invoicing`
 - Overlay / Ada sync: `decisionsciencecorp/invoicing` (`dev` until Phase 5, then `main`)
 **Hosts:**
 - DEV: `https://dev.invoicing.decisionsciencecorp.com` (branch `dev`, Square Sandbox)
