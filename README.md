@@ -1,5 +1,7 @@
 # DSC Invoicing
 
+**Overlay lane** for [Sanctum Invoicing](https://github.com/sanctumos/sanctum-invoicing). Product features invent upstream; this repo keeps DSC brand, Square lanes, Tasks/PSF wiring, and Ada multihost sync (`docs/DEPLOY-LANES.md`, `docs/OVERLAY-INVENTORY.md`). Promote with `tools/promote_from_sanctum.sh`.
+
 PHP + SQLite app for **consulting retainers + overage invoicing** via **Square**. Follows [Kitchen POS](https://github.com/decisionsciencecorp/kitchen-pos)-style layout: `public/` docroot, session admin, curl-based Square client.
 
 - **PRD:** [`docs/PRD-invoicing-v0.1.md`](docs/PRD-invoicing-v0.1.md) (v0.2 content)

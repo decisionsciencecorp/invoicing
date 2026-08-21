@@ -37,7 +37,7 @@ require_once __DIR__ . '/includes/header.php';
 
 <div class="inv-login-wrap">
     <div class="inv-login-card">
-        <h1><?= htmlspecialchars(SITE_NAME, ENT_QUOTES, 'UTF-8') ?></h1>
+        <h1><?= htmlspecialchars(dsc_invoicing_app_name(), ENT_QUOTES, 'UTF-8') ?></h1>
         <p class="subtitle mb-0">Sign in to continue</p>
         <?php if ($error !== ''): ?>
             <p class="error mt-3 mb-0"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
