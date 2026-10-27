@@ -61,9 +61,12 @@ final class CrudHandlersTest extends TestCase
         $upE = runInvoicingApiUpdateEngagement([
             'engagement_id' => $eid,
             'tier1_amount_cents' => 212500,
+            'tier3_amount_cents' => 100000,
             'billing_mode' => 'flat_tier',
         ], $key, $ip);
         $this->assertTrue($upE['success']);
+        $after = runInvoicingApiGetEngagement($key, $ip, $eid);
+        $this->assertSame(100000, (int) ($after['data']['engagement']['tier3_amount_cents'] ?? 0));
 
         $hourly = runInvoicingApiCreateEngagement([
             'company_id' => $companyId,

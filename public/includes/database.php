@@ -132,6 +132,7 @@ function initializeDatabase(bool $runColumnMigrations = true): void {
                 billing_mode TEXT NOT NULL DEFAULT 'hourly',
                 tier1_amount_cents INTEGER NOT NULL DEFAULT 0,
                 tier2_amount_cents INTEGER NOT NULL DEFAULT 0,
+                tier3_amount_cents INTEGER NOT NULL DEFAULT 0,
                 tasks_project_id INTEGER,
                 tasks_directory_path TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -370,6 +371,9 @@ function dsc_invoicing_ensure_engagement_flat_tier_columns(SQLite3 $db): void {
     }
     if (!isset($cols['tier2_amount_cents'])) {
         $db->exec('ALTER TABLE engagements ADD COLUMN tier2_amount_cents INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!isset($cols['tier3_amount_cents'])) {
+        $db->exec('ALTER TABLE engagements ADD COLUMN tier3_amount_cents INTEGER NOT NULL DEFAULT 0');
     }
 }
 

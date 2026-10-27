@@ -26,7 +26,8 @@ $st = $db->prepare(
     'SELECT id, name, hourly_rate_cents, included_hours_per_month, status, square_subscription_id, '
     . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
     . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
-    . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents '
+    . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+    . 'COALESCE(tier3_amount_cents, 0) AS tier3_amount_cents '
     . 'FROM engagements WHERE company_id = :cid ORDER BY name COLLATE NOCASE'
 );
 $st->bindValue(':cid', $companyId, SQLITE3_INTEGER);
@@ -78,6 +79,7 @@ require_once __DIR__ . '/includes/header.php';
                             <?php if ($isFlat): ?>
                                 T1 $<?= number_format(((int) $e['tier1_amount_cents']) / 100, 2) ?>
                                 · T2 $<?= number_format(((int) $e['tier2_amount_cents']) / 100, 2) ?>
+                                · T3 $<?= number_format(((int) $e['tier3_amount_cents']) / 100, 2) ?>
                             <?php else: ?>
                                 $<?= number_format(((int) $e['hourly_rate_cents']) / 100, 2) ?>/hr
                                 · <?= (int) $e['included_hours_per_month'] ?> hrs

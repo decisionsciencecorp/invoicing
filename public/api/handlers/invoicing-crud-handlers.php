@@ -193,6 +193,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
                 . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
                 . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
                 . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+                . 'COALESCE(tier3_amount_cents, 0) AS tier3_amount_cents, '
                 . 'created_at, updated_at '
                 . 'FROM engagements WHERE company_id = :c ORDER BY name COLLATE NOCASE'
             );
@@ -205,6 +206,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
                 . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
                 . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
                 . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+                . 'COALESCE(tier3_amount_cents, 0) AS tier3_amount_cents, '
                 . 'created_at, updated_at '
                 . 'FROM engagements ORDER BY company_id, name COLLATE NOCASE'
             );
@@ -218,6 +220,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
             $row['work_stoppage'] = (int) $row['work_stoppage'];
             $row['tier1_amount_cents'] = (int) $row['tier1_amount_cents'];
             $row['tier2_amount_cents'] = (int) $row['tier2_amount_cents'];
+            $row['tier3_amount_cents'] = (int) $row['tier3_amount_cents'];
             $rows[] = $row;
         }
 
@@ -241,6 +244,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
             . 'COALESCE(billing_mode, \'hourly\') AS billing_mode, '
             . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
             . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+            . 'COALESCE(tier3_amount_cents, 0) AS tier3_amount_cents, '
             . 'created_at, updated_at '
             . 'FROM engagements WHERE id = :id'
         );
@@ -256,6 +260,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $row['work_stoppage'] = (int) $row['work_stoppage'];
         $row['tier1_amount_cents'] = (int) $row['tier1_amount_cents'];
         $row['tier2_amount_cents'] = (int) $row['tier2_amount_cents'];
+        $row['tier3_amount_cents'] = (int) $row['tier3_amount_cents'];
 
         return ['success' => true, 'code' => 200, 'data' => ['engagement' => $row]];
     }
@@ -293,10 +298,11 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         }
         $t1 = isset($data['tier1_amount_cents']) ? (int) $data['tier1_amount_cents'] : 0;
         $t2 = isset($data['tier2_amount_cents']) ? (int) $data['tier2_amount_cents'] : 0;
+        $t3 = isset($data['tier3_amount_cents']) ? (int) $data['tier3_amount_cents'] : 0;
         $ins = $db->prepare(
             'INSERT INTO engagements (company_id, name, hourly_rate_cents, included_hours_per_month, status, '
-            . 'square_subscription_id, billing_mode, tier1_amount_cents, tier2_amount_cents) '
-            . 'VALUES (:c, :n, :h, :i, :s, :q, :bm, :t1, :t2)'
+            . 'square_subscription_id, billing_mode, tier1_amount_cents, tier2_amount_cents, tier3_amount_cents) '
+            . 'VALUES (:c, :n, :h, :i, :s, :q, :bm, :t1, :t2, :t3)'
         );
         $ins->bindValue(':c', $companyId, SQLITE3_INTEGER);
         $ins->bindValue(':n', $name, SQLITE3_TEXT);
@@ -307,6 +313,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
         $ins->bindValue(':bm', $billingMode, SQLITE3_TEXT);
         $ins->bindValue(':t1', $t1, SQLITE3_INTEGER);
         $ins->bindValue(':t2', $t2, SQLITE3_INTEGER);
+        $ins->bindValue(':t3', $t3, SQLITE3_INTEGER);
         $ins->execute();
         $id = (int) $db->lastInsertRowID();
 
@@ -348,6 +355,7 @@ if (!function_exists('runInvoicingApiListCompanies')) {
             'billing_mode' => SQLITE3_TEXT,
             'tier1_amount_cents' => SQLITE3_INTEGER,
             'tier2_amount_cents' => SQLITE3_INTEGER,
+            'tier3_amount_cents' => SQLITE3_INTEGER,
             'tasks_project_id' => SQLITE3_INTEGER,
             'tasks_directory_path' => SQLITE3_TEXT,
         ];

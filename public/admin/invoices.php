@@ -168,7 +168,8 @@ if ($selE > 0) {
     $est = $db->prepare(
         'SELECT id, COALESCE(billing_mode, \'hourly\') AS billing_mode, '
         . 'COALESCE(tier1_amount_cents, 0) AS tier1_amount_cents, '
-        . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents FROM engagements WHERE id = :id'
+        . 'COALESCE(tier2_amount_cents, 0) AS tier2_amount_cents, '
+        . 'COALESCE(tier3_amount_cents, 0) AS tier3_amount_cents FROM engagements WHERE id = :id'
     );
     $est->bindValue(':id', $selE, SQLITE3_INTEGER);
     $selEngRow = $est->execute()->fetchArray(SQLITE3_ASSOC) ?: null;
@@ -305,6 +306,9 @@ inv_render_page_header([
                 </option>
                 <option value="tier2" <?= $selTier === 'tier2' ? 'selected' : '' ?>>
                     Tier 2 — $<?= number_format(((int) ($selEngRow['tier2_amount_cents'] ?? 0)) / 100, 2) ?>
+                </option>
+                <option value="tier3" <?= $selTier === 'tier3' ? 'selected' : '' ?>>
+                    Tier 3 — $<?= number_format(((int) ($selEngRow['tier3_amount_cents'] ?? 0)) / 100, 2) ?>
                 </option>
             </select>
             <p style="color:#8b949e;font-size:.875rem;margin:0 0 .75rem;">
