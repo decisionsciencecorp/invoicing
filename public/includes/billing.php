@@ -59,11 +59,24 @@ function dsc_billing_flat_fee_due_date(): string {
 
 function dsc_billing_normalize_tier_key(?string $tierKey): string {
     $k = strtolower(trim((string) $tierKey));
-    return $k === 'tier2' ? 'tier2' : 'tier1';
+    if ($k === 'tier2') {
+        return 'tier2';
+    }
+    if ($k === 'tier3') {
+        return 'tier3';
+    }
+    return 'tier1';
 }
 
 function dsc_billing_tier_label(string $tierKey): string {
-    return dsc_billing_normalize_tier_key($tierKey) === 'tier2' ? 'Tier 2' : 'Tier 1';
+    $k = dsc_billing_normalize_tier_key($tierKey);
+    if ($k === 'tier2') {
+        return 'Tier 2';
+    }
+    if ($k === 'tier3') {
+        return 'Tier 3';
+    }
+    return 'Tier 1';
 }
 
 /**
@@ -362,7 +375,8 @@ function dsc_billing_combined_totals(
         'SELECT e.id, e.hourly_rate_cents, e.included_hours_per_month, e.status, e.name AS engagement_name, '
         . 'COALESCE(e.billing_mode, \'hourly\') AS billing_mode, '
         . 'COALESCE(e.tier1_amount_cents, 0) AS tier1_amount_cents, '
-        . 'COALESCE(e.tier2_amount_cents, 0) AS tier2_amount_cents '
+        . 'COALESCE(e.tier2_amount_cents, 0) AS tier2_amount_cents, '
+        . 'COALESCE(e.tier3_amount_cents, 0) AS tier3_amount_cents '
         . 'FROM engagements e WHERE e.id = :id LIMIT 1'
     );
     $st->bindValue(':id', $engagementId, SQLITE3_INTEGER);
@@ -748,12 +762,18 @@ function dsc_billing_flat_tier_totals(array $engagementRow, string $anchorMonth,
     $key = dsc_billing_normalize_tier_key($tierKey);
     $t1 = max(0, (int) ($engagementRow['tier1_amount_cents'] ?? 0));
     $t2 = max(0, (int) ($engagementRow['tier2_amount_cents'] ?? 0));
-    $amount = $key === 'tier2' ? $t2 : $t1;
+    $t3 = max(0, (int) ($engagementRow['tier3_amount_cents'] ?? 0));
+    $amount = $t1;
+    if ($key === 'tier2') {
+        $amount = $t2;
+    } elseif ($key === 'tier3') {
+        $amount = $t3;
+    }
     if ($amount <= 0) {
         return [
             'error' => 'Flat/tier engagement has $0 for '
                 . dsc_billing_tier_label($key)
-                . '. Set Tier 1 / Tier 2 amounts on the engagement.',
+                . '. Set Tier 1 / Tier 2 / Tier 3 amounts on the engagement.',
         ];
     }
     $prev = dsc_billing_prev_month($anchorMonth);
@@ -771,6 +791,7 @@ function dsc_billing_flat_tier_totals(array $engagementRow, string $anchorMonth,
         'fee_due_date' => dsc_billing_flat_fee_due_date(),
         'tier1_amount_cents' => $t1,
         'tier2_amount_cents' => $t2,
+        'tier3_amount_cents' => $t3,
     ];
 }
 

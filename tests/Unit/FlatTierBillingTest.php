@@ -22,9 +22,11 @@ final class FlatTierBillingTest extends TestCase
         $this->assertSame('tier1', dsc_billing_normalize_tier_key(null));
         $this->assertSame('tier1', dsc_billing_normalize_tier_key('tier1'));
         $this->assertSame('tier2', dsc_billing_normalize_tier_key('tier2'));
+        $this->assertSame('tier3', dsc_billing_normalize_tier_key('tier3'));
         $this->assertSame('tier1', dsc_billing_normalize_tier_key('nope'));
         $this->assertSame('Tier 1', dsc_billing_tier_label('tier1'));
         $this->assertSame('Tier 2', dsc_billing_tier_label('tier2'));
+        $this->assertSame('Tier 3', dsc_billing_tier_label('tier3'));
     }
 
     public function testFlatTierTotalsTier1AndTier2(): void
@@ -41,6 +43,16 @@ final class FlatTierBillingTest extends TestCase
         $t2 = dsc_billing_combined_totals($db, $seed['engagement_id'], '2026-07', 'tier2');
         $this->assertSame(510000, $t2['total_cents']);
         $this->assertSame('tier2', $t2['tier_key']);
+
+        $db->exec(
+            'UPDATE engagements SET tier1_amount_cents = 0, tier3_amount_cents = 100000 WHERE id = '
+            . (int) $seed['engagement_id']
+        );
+        $t3 = dsc_billing_combined_totals($db, $seed['engagement_id'], '2026-07', 'tier3');
+        $this->assertSame(100000, $t3['total_cents']);
+        $this->assertSame('tier3', $t3['tier_key']);
+        $t1Zero = dsc_billing_combined_totals($db, $seed['engagement_id'], '2026-07', 'tier1');
+        $this->assertArrayHasKey('error', $t1Zero);
     }
 
     public function testFlatTierRejectsZeroAmount(): void

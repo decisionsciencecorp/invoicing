@@ -18,6 +18,7 @@ $row = [
     'billing_mode' => 'hourly',
     'tier1_amount_cents' => 0,
     'tier2_amount_cents' => 0,
+    'tier3_amount_cents' => 0,
     'tasks_project_id' => null,
     'tasks_directory_path' => '',
 ];
@@ -51,6 +52,7 @@ $err = '';
 $hourlyDollars = ((int) $row['hourly_rate_cents']) / 100;
 $tier1Dollars = ((int) ($row['tier1_amount_cents'] ?? 0)) / 100;
 $tier2Dollars = ((int) ($row['tier2_amount_cents'] ?? 0)) / 100;
+$tier3Dollars = ((int) ($row['tier3_amount_cents'] ?? 0)) / 100;
 $billingMode = (string) ($row['billing_mode'] ?? 'hourly');
 if ($billingMode !== 'flat_tier') {
     $billingMode = 'hourly';
@@ -65,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $included = (int) ($_POST['included_hours_per_month'] ?? 0);
     $tier1Dollars = (float) ($_POST['tier1_amount_dollars'] ?? 0);
     $tier2Dollars = (float) ($_POST['tier2_amount_dollars'] ?? 0);
+    $tier3Dollars = (float) ($_POST['tier3_amount_dollars'] ?? 0);
     $status = in_array($_POST['status'] ?? '', ['active', 'paused', 'closed'], true)
         ? $_POST['status']
         : 'active';
@@ -79,19 +82,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $err = 'Hourly rate out of range.';
     } elseif ($billingMode === 'hourly' && ($included < 0 || $included > 1000)) {
         $err = 'Included hours must be between 0 and 1000.';
-    } elseif ($billingMode === 'flat_tier' && ($tier1Dollars < 0 || $tier1Dollars > 1000000 || $tier2Dollars < 0 || $tier2Dollars > 1000000)) {
+    } elseif ($billingMode === 'flat_tier' && ($tier1Dollars < 0 || $tier1Dollars > 1000000 || $tier2Dollars < 0 || $tier2Dollars > 1000000 || $tier3Dollars < 0 || $tier3Dollars > 1000000)) {
         $err = 'Tier amounts out of range.';
-    } elseif ($billingMode === 'flat_tier' && $tier1Dollars <= 0 && $tier2Dollars <= 0) {
+    } elseif ($billingMode === 'flat_tier' && $tier1Dollars <= 0 && $tier2Dollars <= 0 && $tier3Dollars <= 0) {
         $err = 'Set at least one tier amount greater than zero.';
     } else {
         $rateCents = (int) round($hourlyDollars * 100);
         $t1Cents = (int) round($tier1Dollars * 100);
         $t2Cents = (int) round($tier2Dollars * 100);
+        $t3Cents = (int) round($tier3Dollars * 100);
         if ($id > 0) {
             $up = $db->prepare(
                 'UPDATE engagements SET company_id = :cid, name = :n, hourly_rate_cents = :r, '
                 . 'included_hours_per_month = :ih, status = :st, square_subscription_id = :sq, '
                 . 'billing_mode = :bm, tier1_amount_cents = :t1, tier2_amount_cents = :t2, '
+                . 'tier3_amount_cents = :t3, '
                 . 'tasks_project_id = :tp, tasks_directory_path = :td, '
                 . 'updated_at = CURRENT_TIMESTAMP WHERE id = :id'
             );
@@ -100,8 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $up = $db->prepare(
                 'INSERT INTO engagements (company_id, name, hourly_rate_cents, included_hours_per_month, status, '
                 . 'square_subscription_id, billing_mode, tier1_amount_cents, tier2_amount_cents, '
+                . 'tier3_amount_cents, '
                 . 'tasks_project_id, tasks_directory_path) '
-                . 'VALUES (:cid, :n, :r, :ih, :st, :sq, :bm, :t1, :t2, :tp, :td)'
+                . 'VALUES (:cid, :n, :r, :ih, :st, :sq, :bm, :t1, :t2, :t3, :tp, :td)'
             );
         }
         $up->bindValue(':cid', $companyId, SQLITE3_INTEGER);
@@ -113,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $up->bindValue(':bm', $billingMode, SQLITE3_TEXT);
         $up->bindValue(':t1', $t1Cents, SQLITE3_INTEGER);
         $up->bindValue(':t2', $t2Cents, SQLITE3_INTEGER);
+        $up->bindValue(':t3', $t3Cents, SQLITE3_INTEGER);
         if ($tasksProjectId === null) {
             $up->bindValue(':tp', null, SQLITE3_NULL);
         } else {
@@ -177,6 +184,8 @@ require_once __DIR__ . '/includes/header.php';
             <input type="number" step="0.01" min="0" id="tier1_amount_dollars" name="tier1_amount_dollars" value="<?= htmlspecialchars((string) $tier1Dollars, ENT_QUOTES, 'UTF-8') ?>">
             <label for="tier2_amount_dollars" style="margin-top:0.75rem;">Tier 2 invoice amount (USD)</label>
             <input type="number" step="0.01" min="0" id="tier2_amount_dollars" name="tier2_amount_dollars" value="<?= htmlspecialchars((string) $tier2Dollars, ENT_QUOTES, 'UTF-8') ?>">
+            <label for="tier3_amount_dollars" style="margin-top:0.75rem;">Tier 3 invoice amount (USD)</label>
+            <input type="number" step="0.01" min="0" id="tier3_amount_dollars" name="tier3_amount_dollars" value="<?= htmlspecialchars((string) $tier3Dollars, ENT_QUOTES, 'UTF-8') ?>">
             <p style="font-size:0.875rem;color:#8b949e;margin:0.35rem 0 0;">Pick which tier to bill each month on the Invoices page (default Tier 1). Flat invoices are Net 30.</p>
         </div>
 
