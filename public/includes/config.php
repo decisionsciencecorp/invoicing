@@ -116,7 +116,7 @@ if (!defined('SITE_URL')) {
 }
 
 if (session_status() === PHP_SESSION_NONE && !(defined('DSC_INVOICING_SKIP_SESSION') && DSC_INVOICING_SKIP_SESSION)) {
-    $secure = defined('SITE_URL') && strpos(SITE_URL, 'https://') === 0;
+    require_once __DIR__ . '/https_request.php';
     $sessionTtl = (int) ADMIN_SESSION_LIFETIME_SECONDS;
     if ($sessionTtl < 4 * 3600) {
         $sessionTtl = 4 * 3600;
@@ -125,7 +125,7 @@ if (session_status() === PHP_SESSION_NONE && !(defined('DSC_INVOICING_SKIP_SESSI
     session_set_cookie_params([
         'lifetime' => $sessionTtl,
         'httponly' => true,
-        'secure' => $secure,
+        'secure' => dsc_session_cookie_secure(),
         'samesite' => 'Lax',
     ]);
     session_name(SESSION_NAME);
